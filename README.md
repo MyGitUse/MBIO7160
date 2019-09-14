@@ -1,3 +1,3 @@
 # MBIO7160
 
-**Testing 1**
+[Textbook Link](http://web.stanford.edu/class/bios221/book/)
