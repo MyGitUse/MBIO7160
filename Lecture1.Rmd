@@ -1,0 +1,29 @@
+---
+title: "Chapter 1: Generative Models for Discrete Data"
+output: html_notebook
+---
+
+*Run* = *Ctrl+Shift+Enter*  
+*Insert Chunk* =*Ctrl+Alt+I*  
+*Preview*=*Ctrl+Shift+K*
+
+[Batch Download Images from Directory](https://stackoverflow.com/questions/23446635/how-to-download-http-directory-with-all-files-and-sub-directories-as-they-appear)
+
+> wget -r -np -nH --cut-dirs=3 -R index.html http://hostname/aaa/bbb/ccc/ddd/  
+  * -r : recursively  
+  * -np : not going to upper directories, like ccc/…  
+  * -nH : not saving files to hostname folder  
+  * --cut-dirs=3 : but saving it to ddd by omitting first 3 folders aaa, bbb, ccc  
+  * -R index.html : excluding index.html files
+
+```{code}
+mkdir Bookimages
+cd Bookimages
+wget -r -np -nH --cut-dirs=3 -R SmoothLineP134h7.png http://web.stanford.edu/class/bios221/book/images/
+# Seems "SmoothLineP134h7.png" is missing so had to exclude 
+```
+
+> Renaming  
+  * sudo apt install rename  #need to download b/c perl version not on ubuntu
+  * rename -v 's/<pattern>/<replacement>/g'  
+  * -n is to view change, -v is permanent, /g is recursive replacemnet
