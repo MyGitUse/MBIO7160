@@ -2,6 +2,414 @@
 title: "Chapter 1: Generative Models for Discrete Data"
 output: html_notebook
 ---
+<body>
+      <font face = "Times New Roman">
+  
+<p id="0"><u><font size="5"><b>Table of contents</b></font></u></p>  
+<a href="#1">[1]</a> Intro  
+<a href="#2">[2]</a> Chapter 1: Generative Models for Discrete Data
+<br> &emsp; <a href="#3">[2.1]</a> Chapter Summary
+<br> &emsp; <a href="#4">[2.2]</a> Example
+<br> &emsp; <a href="#5">[2.3]</a> Discrete Probability Models
+<br> &emsp; <a href="#6">[2.4]</a> Multinomial distributions
+<br> &emsp; <a href="#7">[2.5]</a> Excercises</br> 
+<a href="#x">[X]</a> Misc.
+
+* **
+
+<p id="1"><b><font size="5">Intro</b></font><a href="#0"><sup>Return</sup></a></p>
+* Book literally states, <u>"The book will often throw readers into the pool and hope they can swim in spite of so many missing details."</u>
+  * Book also states, "We assume no prior training in statistics."
+* This book is based upon R language + Bioconductor package
+* Heterogenous data = many dimensions to biological data (ex) incubation time, temperature, condition)
+<center><img src="http://web.stanford.edu/class/bios221/book/images/FisherParadigm.png" width="300" height="40" alt="Fig0.1"></center>
+* **Exploratory data analysis** = Data used for statistical anlysis to summarize -> ex) simple plotting
+  * **Confirmatory data analyses** = robust inferrence which don't need assumptions for a conclusion -> ex) hypothesis testing, regression analysis, and variance analysis
+* Large number of columns/features (p), small sample size/rows (n) problem
+  * To predict an outcome from high #features, model parameters have to be magnitues higher than samples
+  * Solution = use sparsity
+    * Use parameters of ~0
+    * Emperical Bayes = Don't need to know parameters associated w/ each feature, just infer some/all features/groups share similar/same parammters
+  * Bottom up approach to statistics = what model explains the data best? (work backwards)  
+<button data-toggle="collapse" data-target="#demo">Click to see chapters of the book</button>
+<div id="demo" class="collapse">
+<br>CH1 (Generative models - building blocks to draw conclusion of data)
+<br>CH2 (Choose model to explain data)
+<br>CH3 (Visualization)
+<br>CH4 (Mixture modeling)
+<br>CH5 (Clustering - distance reliance)
+<br>CH6 (Hypothesis test workflow)
+<br>CH7 (PCA + multivariate), CH8 (variance analysis (ANOVA))
+<br>CH9 (combination of data types), CH10 (networks + trees)
+<br>CH11 (feature extraction from images + spatial stats)
+<br>CH12 (traing algorithm - machine learning)
+<br>CH13 (experimental design)
+</br></div>
+
+* **
+
+<p id="2"><b><font size="5">Chapter 1: Generative Models for Discrete Data</b></font><a href="#0"><sup>Return</sup></a></p>
+* Counting events (ex) #codons, #reads, #GC to calculate %GC)
+  * <mark style='background-color:yellow'>Counts = discrete variables</mark>
+    * **Discrete variables** = countable variable up to a **limit** (ex) money)
+  * <mark style='background-color:yellow'>Quantities (mass/intensity) = continous variables </mark>
+    * **Continous variables** = if counted it could be **limitless** (ex) age of universe may be endless)
+      * Age can be discrete if unit is specified (ex) months, or years)
+      * Therefore, continous variables may be discrete under certain circumstances (ex) time on clock)
+* Studies usually constricted by rules -> can predict probability of outcome == **Top-down approach of deduction**
+  * Prior knowledge manipulates probabilities
+* Parametric vs non-parametic data
+  * <mark style='background-color:yellow'>**Parametric** = modelling w/ known facts(paramteters) about population</mark>
+    * ex) normal distribution (parameters = mean(μ) and standard deviation(σ))
+      * where mean = 0, and stdev = 1 in normal distribution
+    * Should be used over nonparametric if applicable (more accurate, more statistical power = find true significance)
+  * <mark style='background-color:yellow'>**Nonparametric(distribution-free)** = No assumptions about distribution, usually <u>assumes distribution is not normally distributed</u></mark>
+    * Less accurate vs parametric tests 
+
+* **
+
+<p id="3"><b><font size="5">Chapter Summary</b></font><a href="#0"><sup>Return</sup></a></p>
+* Calculating probabilities of **discrete events**
+  * Model for basic distributions
+    * **Bernoulli distribution** = represent single binary trial (ex) coin flip), as 0 and 1
+      * _p_ (probability of success) == 1
+    * **Binomial distribution** = used for 1's in _n_ binary trial, create probabilities of _k_ success (via R dbinom)
+      * Can stimulate _n_ trial binomial (via R rbinom)
+    * **Poisson distribution** = used when _p_ is small (rare 1's - success)
+      * One parameter _λ_
+        * Poisson formula λ=np -> approximately same as binomial distribution (n,p) IF _p_ is small
+      * model #randomly occuring false +ves in assay (epitopes in sequence) -> assumed pre-positon false +ve rate _p_ is small
+      * Parametric model to find proabilities of extreme events (requires parameters - parametric)
+    * **Multinomial distribution** = used for discrete events w/ >2 possible outcomes(levels)
+      * Monte Carlo stimulations can help decide how much data is needed to test w/ multinomial model w/ equal probabilities and see if consistent w/ data
+      * Probabilistic models to evaluate hypotheses of how data was generated
+        * Assumptions of generative models
+      * **Probability of seeing data w/ given hypothesis == p-value**
+
+* **
+
+
+<p id="4"><b><font size="5">Example</b></font><a href="#0"><sup>Return</sup></a></p>
+* ex) Mutations along HIV genome occur at random rate of 5x10<sup>-4</sup>mutations/nt/rep cycle 
+  * If rep cycle = 1, then mutations in genome is about 10<sup>4</sup> = 10,000
+    * (0.0005mutations\*rep cycle/1nt) = (x mutations*1 cycle/10000 nt)
+      * (0.0005mutations\*rep cycle/1nt) * (10000 nt/1 cycle) = (x mutations)
+      * (0.0005mutations * 10000 nt/1nt) = x mutations
+      * 5 mutations = x
+  * Poisson Distribution
+    * of rate 5 mutations
+    * This model can be used to predict #of mutations in one replication cycle (predicts ~5)
+      * Variability of this estimate is √5 (standard error)
+    ![**Poisson Formula, where λ=μ**](https://www.onlinemathlearning.com/image-files/xpoisson-distribution-formula.png.pagespeed.ic.s5RE-oEm0q.png)
+      * **Poisson Formula, where λ=μ**
+        * Probability of seeing _x_ value 
+        * <mark style='background-color:lightgreen'> good model for rare events (ex) mutations)</mark>
+
+```{r}
+# If predict probability of 3 mutations using the 5 mutation model then
+  # x=3 events
+  # rate parameter(λ) = 5
+dpois(x=3, lambda=5)
+```
+Therefore, chance of seeing 3 mutations is ~0.14%
+
+```{r}
+# To find probability of x=0 to 12 mutations
+n=0:12
+x = dpois(x=n, lambda=5)
+x
+```
+
+```{r}
+#Plot
+  # names.arg = vector names to be plotted under each bar
+barplot(x, names.arg = 0:12, col = "red")
+```
+
+* **
+
+<p id="5"><b><font size="5">Discrete Probability Models</b></font><a href="#0"><sup>Return</sup></a></p>
+* Point mutations in binary = occurance(1 or yes) or nonoccurance(0 or no)
+  * Yes/No = **levels** of categorical variable
+    * <mark style='background-color:yellow'>**Categorical Variable** = variables that can be categorized into levels (ex) toothpaste brands)</mark>
+  * Some events are nonbinary (ex) genotypes of diploid -> 3 levels AA, Aa, aa)
+  * **To measure categorical variables of sample**
+    * **Tally frequencies @each level as counts** 
+      * R categorical variables = factors
+      * R automatically detects levels when making factors
+```{r}
+#ex) Blood genotypes for n=19 people
+  # Insert vector of data, then use table to categorize + count frequencies of levels
+
+genotype <- c("AA","AO","BB","AO","OO","AO","AA","BO","BO",
+             "AO","BB","AO","BO","AB","OO","AB","BB","AO","AO")
+table(genotype)
+```
+```{r}
+# To access levels of a R factor (category)
+genotype1=factor(genotype) #turn genotype vector into a factor
+levels(genotype1) #pull out the levels of the factor
+```
+
+* If making factor w/ levels not in data
+  * If order of datapoints independent, then the random variable == exchangeable
+  * Information of factor is summarized via counts(frequencies) in each level
+    * The vector frequencies sufficient to capture all relevant info in data
+
+* <mark style='background-color:lightblue'>**Bernoulli Distribution**</mark>
+  * [Useful video](https://www.youtube.com/watch?v=CM7ncRGlViE)
+  * ex) Tossing a coin results in 2 possible outcomes (simple experiment - single trial)
+    * for this example, use ```rbinom``` (where r is for base r function, binom is for binomial).
+  ![**Binomial Formula**](https://www.onlinemathlearning.com/image-files/binomial-distribution-formula.png)
+      * x is often denoted k
+      * q = 1-p
+      * B(n=20,p=1/6) want to know Prob(X=3) - 3 success
+        * dbinom(x=3, size=20, p=1/6)
+      * rbinom
+        * n = number of replicates of experiment
+        * size = #of trials in each replicate
+        
+> The number of trials is the number we input in R as the size parameter and is often written n, while the probability of success is p. Mathematical theory tells us that for X distributed as a binomial distribution with parameters (n, p) written X∼B(n,p), the probability of seeing X = k successes is
+
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+  <mtable columnalign="right left right left right left right left right left right left" rowspacing="3pt" columnspacing="0em 2em 0em 2em 0em 2em 0em 2em 0em 2em 0em" displaystyle="true">
+    <mtr>
+      <mtd>
+        <mi>P</mi>
+        <mo stretchy="false">(</mo>
+        <mi>X</mi>
+        <mo>=</mo>
+        <mi>k</mi>
+        <mo stretchy="false">)</mo>
+      </mtd>
+      <mtd>
+        <mi></mi>
+        <mo>=</mo>
+      </mtd>
+      <mtd>
+        <mfrac>
+          <mrow>
+            <mi>n</mi>
+            <mo>&#x00D7;<!-- × --></mo>
+            <mo stretchy="false">(</mo>
+            <mi>n</mi>
+            <mo>&#x2212;<!-- − --></mo>
+            <mn>1</mn>
+            <mo stretchy="false">)</mo>
+            <mo>.</mo>
+            <mo>.</mo>
+            <mo>.</mo>
+            <mo stretchy="false">(</mo>
+            <mi>n</mi>
+            <mo>&#x2212;<!-- − --></mo>
+            <mi>k</mi>
+            <mo>+</mo>
+            <mn>1</mn>
+            <mo stretchy="false">)</mo>
+          </mrow>
+          <mrow>
+            <mi>k</mi>
+            <mo>&#x00D7;<!-- × --></mo>
+            <mo stretchy="false">(</mo>
+            <mi>k</mi>
+            <mo>&#x2212;<!-- − --></mo>
+            <mn>1</mn>
+            <mo stretchy="false">)</mo>
+            <mo>.</mo>
+            <mo>.</mo>
+            <mo>.</mo>
+            <mn>1</mn>
+          </mrow>
+        </mfrac>
+        <mspace width="thickmathspace" />
+        <msup>
+          <mi>p</mi>
+          <mi>k</mi>
+        </msup>
+        <mspace width="thinmathspace" />
+        <mo stretchy="false">(</mo>
+        <mn>1</mn>
+        <mo>&#x2212;<!-- − --></mo>
+        <mi>p</mi>
+        <msup>
+          <mo stretchy="false">)</mo>
+          <mrow class="MJX-TeXAtom-ORD">
+            <mi>n</mi>
+            <mo>&#x2212;<!-- − --></mo>
+            <mi>k</mi>
+          </mrow>
+        </msup>
+      </mtd>
+    </mtr>
+    <mtr>
+      <mtd />
+      <mtd>
+        <mi></mi>
+        <mo>=</mo>
+      </mtd>
+      <mtd>
+        <mfrac>
+          <mrow>
+            <mi>n</mi>
+            <mo>!</mo>
+          </mrow>
+          <mrow>
+            <mo stretchy="false">(</mo>
+            <mi>n</mi>
+            <mo>&#x2212;<!-- − --></mo>
+            <mi>k</mi>
+            <mo stretchy="false">)</mo>
+            <mo>!</mo>
+            <mi>k</mi>
+            <mo>!</mo>
+          </mrow>
+        </mfrac>
+        <mspace width="thickmathspace" />
+        <msup>
+          <mi>p</mi>
+          <mi>k</mi>
+        </msup>
+        <mspace width="thinmathspace" />
+        <mo stretchy="false">(</mo>
+        <mn>1</mn>
+        <mo>&#x2212;<!-- − --></mo>
+        <mi>p</mi>
+        <msup>
+          <mo stretchy="false">)</mo>
+          <mrow class="MJX-TeXAtom-ORD">
+            <mi>n</mi>
+            <mo>&#x2212;<!-- − --></mo>
+            <mi>k</mi>
+          </mrow>
+        </msup>
+      </mtd>
+    </mtr>
+    <mtr>
+      <mtd />
+      <mtd>
+        <mi></mi>
+        <mo>=</mo>
+      </mtd>
+      <mtd>
+        <mrow class="MJX-TeXAtom-ORD">
+          <mrow>
+            <mrow class="MJX-TeXAtom-OPEN">
+              <mo maxsize="2.047em" minsize="2.047em">(</mo>
+            </mrow>
+            <mfrac linethickness="0">
+              <mi>n</mi>
+              <mi>k</mi>
+            </mfrac>
+            <mrow class="MJX-TeXAtom-CLOSE">
+              <mo maxsize="2.047em" minsize="2.047em">)</mo>
+            </mrow>
+          </mrow>
+        </mrow>
+        <mspace width="thickmathspace" />
+        <msup>
+          <mi>p</mi>
+          <mi>k</mi>
+        </msup>
+        <mspace width="thinmathspace" />
+        <mo stretchy="false">(</mo>
+        <mn>1</mn>
+        <mo>&#x2212;<!-- − --></mo>
+        <mi>p</mi>
+        <msup>
+          <mo stretchy="false">)</mo>
+          <mrow class="MJX-TeXAtom-ORD">
+            <mi>n</mi>
+            <mo>&#x2212;<!-- − --></mo>
+            <mi>k</mi>
+          </mrow>
+        </msup>
+        <mo>.</mo>
+      </mtd>
+    </mtr>
+  </mtable>
+</math>
+
+
+  * ex) 15 fair coin tosses to outcome Bernoulli trial w/ probability of success (_p_) = 0.5
+```{r}
+#rbinom = random generation of success/failure
+rbinom(n=15, prob=0.5, size=1)
+```
+
+Parameters/Arguements = subset of functions within a function  
+&emsp;  * n=15 is parameter 1 (#trials to observe (replicates))  
+&emsp;  * prob is parameter 2 (probability of success)  
+&emsp;  * size is parameter 3 (means each individual replicate has _one_ (trial) coin toss)  
+
+**Note** The answer using binomial equation always changes because two levels (success or failure)  
+&emsp; * outcome differs per run 
+
+Success and failure can have unequal proabilities in Bernoulli distribution
+&emsp; * But the probabilities must sum = 1 (complementary)
+```{r}
+# ex) for 12 throws(replicates) of 1 ball into 2 boxes (one throw per replicate (size=1))
+  # Probability left = 1/3, right = 2/3
+
+rbinom(n=12, prob=2/3, size=1)
+```
+
+Where 1 = successfully landed in right box, 0 = landed in left box
+
+* <mark style='background-color:lightblue'>**Binomial Distribution**</mark>
+  * <mark style='background-color:yellow'>**Bernoulli vs Binomial**</mark>
+    * 2 outcomes
+      * size = >=1 trials then binomial
+      * size = 1 trial Bernouli
+  * ex) Only care about #balls go into right box & #throws doesn't matter
+    * sum cells in output vector
+    * Instead of using a binary vector, as in Bernoulli Distribution, <u>the output is a single number</u>
+```{r}
+#ex) For 1 throw (replicate), throw 12 balls into 2 boxes (size=12) 
+  # Probability left = 1/3, right = 2/3
+rbinom(1, prob=2/3, size=12)
+```
+Output is interpreted as 8 balls landing in the right box (with probability 2/3)  
+
+Two level model for two possible outcomes (ex) h/t, success/fail, yes/no, CpG/non-CpG, M/F, **diseased/healthy**)  
+&emsp; * Probability _p_ of success or complementary event failure (1-p) -> only for independent events (exchangeable)  
+&emsp; * ex) in n=15, if SSSSSFSSSSFFFSF, then #success=10, fail=5 -> n15, x=10
+
+```{r}
+#1 Bernoulli trial (replicate) w/ sample size (trials) 15 w/ success probability of 0.3 = binomial random variable B(15, 0.3)  -> B(n,p)
+  # Set seed is a state where random numbers are always the same for that seed (so that results can be replicated if same seed used) -> useful for binomial results b/c success/fail probabilities variable
+set.seed(235569515)
+rbinom(n=1, prob = 0.3, size = 15)
+```
+
+```{r}
+#Q) If binom function is used 10 times (11 replicates), what is the most common outcome number?
+  # Check probability mass distribution
+
+#0 to 10 trials with sample size of 15, success probability of 0.3
+prob <- dbinom(0:10, prob=0.3, size=15)
+round(prob, 2)
+
+
+```
+```{r}
+#Visualize previous question with a barplot
+  # names.arg = vector names to be plotted under each bar
+barplot(prob, names.arg=0:10, col="red")
+```
+
+* <mark style='background-color:lightblue'>Poisson Distribution</mark>
+
+* **
+
+<p id="6"><b><font size="5">Multinomial distributions</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+
+<p id="7"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+
+<p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
 
 *Run* = *Ctrl+Shift+Enter*  
 *Insert Chunk* =*Ctrl+Alt+I*  
@@ -13,7 +421,7 @@ output: html_notebook
   * -r : recursively  
   * -np : not going to upper directories, like ccc/…  
   * -nH : not saving files to hostname folder  
-  * --cut-dirs=3 : but saving it to ddd by omitting first 3 folders aaa, bbb, ccc  
+    * --cut-dirs=3 : but saving it to ddd by omitting first 3 folders aaa, bbb, ccc  
   * -R index.html : excluding index.html files
 
 ```{code}
@@ -23,7 +431,13 @@ wget -r -np -nH --cut-dirs=3 -R SmoothLineP134h7.png http://web.stanford.edu/cla
 # Seems "SmoothLineP134h7.png" is missing so had to exclude 
 ```
 
-> Renaming  
+> **Renaming**  
   * sudo apt install rename  #need to download b/c perl version not on ubuntu
   * rename -v 's/<pattern>/<replacement>/g'  
   * -n is to view change, -v is permanent, /g is recursive replacemnet
+  
+![**Markdown spacing**](https://i.stack.imgur.com/bMNFi.png)
+
+
+</body>
+  
