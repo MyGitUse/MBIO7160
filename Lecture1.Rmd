@@ -439,5 +439,7 @@ wget -r -np -nH --cut-dirs=3 -R SmoothLineP134h7.png http://web.stanford.edu/cla
 ![**Markdown spacing**](https://i.stack.imgur.com/bMNFi.png)
 
 
+> A Bernoulli random variable has two possible outcomes: 0 or 1. A binomial distribution is the sum of independent and identically distributed Bernoulli random variables. ... The random variable that represents your winnings after one coin toss is a Bernoulli random variable.
+
 </body>
   
