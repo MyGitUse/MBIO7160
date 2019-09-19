@@ -2,6 +2,7 @@
 title: "Chapter 1: Generative Models for Discrete Data"
 output: html_notebook
 ---
+
 <body>
       <font face = "Times New Roman">
   
@@ -33,17 +34,17 @@ output: html_notebook
   * Bottom up approach to statistics = what model explains the data best? (work backwards)  
 <button data-toggle="collapse" data-target="#demo">Click to see chapters of the book</button>
 <div id="demo" class="collapse">
-<br>CH1 (Generative models - building blocks to draw conclusion of data)
-<br>CH2 (Choose model to explain data)
-<br>CH3 (Visualization)
-<br>CH4 (Mixture modeling)
-<br>CH5 (Clustering - distance reliance)
-<br>CH6 (Hypothesis test workflow)
-<br>CH7 (PCA + multivariate), CH8 (variance analysis (ANOVA))
-<br>CH9 (combination of data types), CH10 (networks + trees)
-<br>CH11 (feature extraction from images + spatial stats)
-<br>CH12 (traing algorithm - machine learning)
-<br>CH13 (experimental design)
+<br>◆ CH1 (Generative models - building blocks to draw conclusion of data)
+<br>◆ CH2 (Choose model to explain data)
+<br>◆ CH3 (Visualization)
+<br>◆ CH4 (Mixture modeling)
+<br>◆ CH5 (Clustering - distance reliance)
+<br>◆ CH6 (Hypothesis test workflow)
+<br>◆ CH7 (PCA + multivariate), CH8 (variance analysis (ANOVA))
+<br>◆ CH9 (combination of data types), CH10 (networks + trees)
+<br>◆ CH11 (feature extraction from images + spatial stats)
+<br>◆ CH12 (traing algorithm - machine learning)
+<br>◆ CH13 (experimental design)
 </br></div>
 
 * **
@@ -71,7 +72,7 @@ output: html_notebook
 <p id="3"><b><font size="5">Chapter Summary</b></font><a href="#0"><sup>Return</sup></a></p>
 * Calculating probabilities of **discrete events**
   * Model for basic distributions
-    * **Bernoulli distribution** = represent single binary trial (ex) coin flip), as 0 and 1
+    * **Bernoulli distribution** = represent single binary trial (ex) coin flip\), as 0 and 1
       * _p_ (probability of success) == 1
     * **Binomial distribution** = used for 1's in _n_ binary trial, create probabilities of _k_ success (via R dbinom)
       * Can stimulate _n_ trial binomial (via R rbinom)
@@ -100,10 +101,14 @@ output: html_notebook
     * of rate 5 mutations
     * This model can be used to predict #of mutations in one replication cycle (predicts ~5)
       * Variability of this estimate is √5 (standard error)
-    ![**Poisson Formula, where λ=μ**](https://www.onlinemathlearning.com/image-files/xpoisson-distribution-formula.png.pagespeed.ic.s5RE-oEm0q.png)
-      * **Poisson Formula, where λ=μ**
-        * Probability of seeing _x_ value 
-        * <mark style='background-color:lightgreen'> good model for rare events (ex) mutations)</mark>
+      
+<center><span class="math display">\[\begin{equation*}
+P(X=k)= \frac{\lambda^k\;e^{-\lambda}}{k!}.
+\end{equation*}\]</span></center>
+* **Poisson Formula, where λ=μ**
+  * Probability of seeing _x_ value 
+  * <mark style='background-color:lightgreen'> good model for rare events (ex) mutations)</mark>
+  * Explained in "Discrete Probability Models" below
 
 ```{r}
 # If predict probability of 3 mutations using the 5 mutation model then
@@ -111,7 +116,7 @@ output: html_notebook
   # rate parameter(λ) = 5
 dpois(x=3, lambda=5)
 ```
-Therefore, chance of seeing 3 mutations is ~0.14%
+Therefore, chance of seeing 3 mutations is ~14%
 
 ```{r}
 # To find probability of x=0 to 12 mutations
@@ -157,197 +162,30 @@ levels(genotype1) #pull out the levels of the factor
     * The vector frequencies sufficient to capture all relevant info in data
 
 * <mark style='background-color:lightblue'>**Bernoulli Distribution**</mark>
-  * [Useful video](https://www.youtube.com/watch?v=CM7ncRGlViE)
   * ex) Tossing a coin results in 2 possible outcomes (simple experiment - single trial)
-    * for this example, use ```rbinom``` (where r is for base r function, binom is for binomial).
-  ![**Binomial Formula**](https://www.onlinemathlearning.com/image-files/binomial-distribution-formula.png)
-      * x is often denoted k
-      * q = 1-p
-      * B(n=20,p=1/6) want to know Prob(X=3) - 3 success
-        * dbinom(x=3, size=20, p=1/6)
-      * rbinom
-        * n = number of replicates of experiment
-        * size = #of trials in each replicate
-        
-> The number of trials is the number we input in R as the size parameter and is often written n, while the probability of success is p. Mathematical theory tells us that for X distributed as a binomial distribution with parameters (n, p) written X∼B(n,p), the probability of seeing X = k successes is
+      * for this example, use ```rbinom``` (where r is for random, binom is for binomial).
+        * rbinom [(Useful video)](https://www.youtube.com/watch?v=CM7ncRGlViE)
+          * n = number of replicates of experiment **(Number of times a trial is performed)**
+          * size = #of trials in each replicate **(Number of actions performed per trial)**
 
-<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
-  <mtable columnalign="right left right left right left right left right left right left" rowspacing="3pt" columnspacing="0em 2em 0em 2em 0em 2em 0em 2em 0em 2em 0em" displaystyle="true">
-    <mtr>
-      <mtd>
-        <mi>P</mi>
-        <mo stretchy="false">(</mo>
-        <mi>X</mi>
-        <mo>=</mo>
-        <mi>k</mi>
-        <mo stretchy="false">)</mo>
-      </mtd>
-      <mtd>
-        <mi></mi>
-        <mo>=</mo>
-      </mtd>
-      <mtd>
-        <mfrac>
-          <mrow>
-            <mi>n</mi>
-            <mo>&#x00D7;<!-- × --></mo>
-            <mo stretchy="false">(</mo>
-            <mi>n</mi>
-            <mo>&#x2212;<!-- − --></mo>
-            <mn>1</mn>
-            <mo stretchy="false">)</mo>
-            <mo>.</mo>
-            <mo>.</mo>
-            <mo>.</mo>
-            <mo stretchy="false">(</mo>
-            <mi>n</mi>
-            <mo>&#x2212;<!-- − --></mo>
-            <mi>k</mi>
-            <mo>+</mo>
-            <mn>1</mn>
-            <mo stretchy="false">)</mo>
-          </mrow>
-          <mrow>
-            <mi>k</mi>
-            <mo>&#x00D7;<!-- × --></mo>
-            <mo stretchy="false">(</mo>
-            <mi>k</mi>
-            <mo>&#x2212;<!-- − --></mo>
-            <mn>1</mn>
-            <mo stretchy="false">)</mo>
-            <mo>.</mo>
-            <mo>.</mo>
-            <mo>.</mo>
-            <mn>1</mn>
-          </mrow>
-        </mfrac>
-        <mspace width="thickmathspace" />
-        <msup>
-          <mi>p</mi>
-          <mi>k</mi>
-        </msup>
-        <mspace width="thinmathspace" />
-        <mo stretchy="false">(</mo>
-        <mn>1</mn>
-        <mo>&#x2212;<!-- − --></mo>
-        <mi>p</mi>
-        <msup>
-          <mo stretchy="false">)</mo>
-          <mrow class="MJX-TeXAtom-ORD">
-            <mi>n</mi>
-            <mo>&#x2212;<!-- − --></mo>
-            <mi>k</mi>
-          </mrow>
-        </msup>
-      </mtd>
-    </mtr>
-    <mtr>
-      <mtd />
-      <mtd>
-        <mi></mi>
-        <mo>=</mo>
-      </mtd>
-      <mtd>
-        <mfrac>
-          <mrow>
-            <mi>n</mi>
-            <mo>!</mo>
-          </mrow>
-          <mrow>
-            <mo stretchy="false">(</mo>
-            <mi>n</mi>
-            <mo>&#x2212;<!-- − --></mo>
-            <mi>k</mi>
-            <mo stretchy="false">)</mo>
-            <mo>!</mo>
-            <mi>k</mi>
-            <mo>!</mo>
-          </mrow>
-        </mfrac>
-        <mspace width="thickmathspace" />
-        <msup>
-          <mi>p</mi>
-          <mi>k</mi>
-        </msup>
-        <mspace width="thinmathspace" />
-        <mo stretchy="false">(</mo>
-        <mn>1</mn>
-        <mo>&#x2212;<!-- − --></mo>
-        <mi>p</mi>
-        <msup>
-          <mo stretchy="false">)</mo>
-          <mrow class="MJX-TeXAtom-ORD">
-            <mi>n</mi>
-            <mo>&#x2212;<!-- − --></mo>
-            <mi>k</mi>
-          </mrow>
-        </msup>
-      </mtd>
-    </mtr>
-    <mtr>
-      <mtd />
-      <mtd>
-        <mi></mi>
-        <mo>=</mo>
-      </mtd>
-      <mtd>
-        <mrow class="MJX-TeXAtom-ORD">
-          <mrow>
-            <mrow class="MJX-TeXAtom-OPEN">
-              <mo maxsize="2.047em" minsize="2.047em">(</mo>
-            </mrow>
-            <mfrac linethickness="0">
-              <mi>n</mi>
-              <mi>k</mi>
-            </mfrac>
-            <mrow class="MJX-TeXAtom-CLOSE">
-              <mo maxsize="2.047em" minsize="2.047em">)</mo>
-            </mrow>
-          </mrow>
-        </mrow>
-        <mspace width="thickmathspace" />
-        <msup>
-          <mi>p</mi>
-          <mi>k</mi>
-        </msup>
-        <mspace width="thinmathspace" />
-        <mo stretchy="false">(</mo>
-        <mn>1</mn>
-        <mo>&#x2212;<!-- − --></mo>
-        <mi>p</mi>
-        <msup>
-          <mo stretchy="false">)</mo>
-          <mrow class="MJX-TeXAtom-ORD">
-            <mi>n</mi>
-            <mo>&#x2212;<!-- − --></mo>
-            <mi>k</mi>
-          </mrow>
-        </msup>
-        <mo>.</mo>
-      </mtd>
-    </mtr>
-  </mtable>
-</math>
-
-
-  * ex) 15 fair coin tosses to outcome Bernoulli trial w/ probability of success (_p_) = 0.5
 ```{r}
-#rbinom = random generation of success/failure
+#  ex) 15 fair coin tosses (Bernoulli trial) w/ probability of success (_p_) = 0.5  -> flip coin once (size=1)
+  #rbinom = random generation of success/failure
 rbinom(n=15, prob=0.5, size=1)
 ```
 
 Parameters/Arguements = subset of functions within a function  
-&emsp;  * n=15 is parameter 1 (#trials to observe (replicates))  
-&emsp;  * prob is parameter 2 (probability of success)  
-&emsp;  * size is parameter 3 (means each individual replicate has _one_ (trial) coin toss)  
+&emsp;  ◆ n=15 is parameter 1 (#trials to observe (replicates))  
+&emsp;  ◆ prob is parameter 2 (probability of success)  
+&emsp;  ◆ size is parameter 3 (means each individual replicate has _one_ (trial) coin toss)  
 
 **Note** The answer using binomial equation always changes because two levels (success or failure)  
-&emsp; * outcome differs per run 
+&emsp; ◆ outcome differs per run due to probability
 
-Success and failure can have unequal proabilities in Bernoulli distribution
-&emsp; * But the probabilities must sum = 1 (complementary)
+Success and failure can have unequal probailities in Bernoulli distribution  
+&emsp; ◆ But the probabilities must sum = 1 (complementary)
 ```{r}
-# ex) for 12 throws(replicates) of 1 ball into 2 boxes (one throw per replicate (size=1))
+# ex) for 12 throws(trial replicates) of 1 ball into 2 boxes (one throw per replicate (size=1))
   # Probability left = 1/3, right = 2/3
 
 rbinom(n=12, prob=2/3, size=1)
@@ -355,58 +193,406 @@ rbinom(n=12, prob=2/3, size=1)
 
 Where 1 = successfully landed in right box, 0 = landed in left box
 
-* <mark style='background-color:lightblue'>**Binomial Distribution**</mark>
+* <mark style='background-color:lightblue'>**Binomial Distribution**</mark>  
+  ![**Binomial Formula**](https://www.onlinemathlearning.com/image-files/binomial-distribution-formula.png)  
+  * x is often denoted k
+  * q = 1-p
+  * B(n=20, p=1/6) want to know Prob(X=3) ------ [3 success]
+    * ```dbinom(x=3, size=20, p=1/6)```
+       * Formula corresponding to above figure
+       * size = n
+       * x = k
+       * p = p
+      
+        
+> The number of trials is the number we input in R as the size parameter and is often written n, while the probability of success is p. Mathematical theory tells us that for X distributed as a binomial distribution with parameters (n, p) written X∼B(n,p), the probability of seeing X = k successes is
+
+<span class="math display">\[\begin{equation*}
+\begin{aligned}
+P(X=k) = \frac{n\times (n-1)... (n-k+1)}{k\times(k-1)... 1}\; p^k\, (1-p)^{n-k} \\
+= \frac{n!}{(n-k)!k!}\;p^k\, (1-p)^{n-k}\\
+= { n \choose k}\; p^k\, (1-p)^{n-k}.\end{aligned}
+\end{equation*}\]</span>
+
   * <mark style='background-color:yellow'>**Bernoulli vs Binomial**</mark>
-    * 2 outcomes
-      * size = >=1 trials then binomial
-      * size = 1 trial Bernouli
-  * ex) Only care about #balls go into right box & #throws doesn't matter
-    * sum cells in output vector
-    * Instead of using a binary vector, as in Bernoulli Distribution, <u>the output is a single number</u>
+    * 2 outcomes (success/fail)
+      * size (action per trial) = 1 Bernouli (One action per multiple Bernoulli trials)
+      * size (action per trial) = >=1 then binomial (Many actions per one Bernoulli trial = sum)
+      
+<center><button data-toggle="collapse" data-target="#explain">Click for better explaination</button>
+<br><div id="explain" class="collapse">
+<br>[Source](https://math.stackexchange.com/questions/838107/what-is-the-difference-and-relationship-between-the-binomial-and-bernoulli-distr/838122)
+<br> ◆ Bernoulli random variable has two possible outcomes: 0 or 1. <u>A binomial distribution is the sum of independent and identically distributed Bernoulli random variables</u>.
+<br> ◆ In general, if there are n Bernoulli trials, then the sum of those trials is binomially distributed with parameters n and p.
+<br> ◆ Note that a binomial random variable with parameter n=1 is equivalent to a Bernoulli random variable, i.e. there is only one trial.
+</br></div></center>
+  
+  * ex) Only care about #balls go into right box & #throws doesn't matter (independence)
+    * sum cells in output vector of Bernoulli
+    * Instead of using a binary vector, as in Bernoulli Distribution, <u>the output is a single number (because sum)</u>
 ```{r}
-#ex) For 1 throw (replicate), throw 12 balls into 2 boxes (size=12) 
-  # Probability left = 1/3, right = 2/3
+#ex) For 1 coin (AKA 1 Bernoulli trial), toss coin 12 times (size=12) -> sum outcome of 1 Bernoulli trial
+  # Probability tails = 1/3, heads = 2/3
 rbinom(1, prob=2/3, size=12)
 ```
-Output is interpreted as 8 balls landing in the right box (with probability 2/3)  
+Output is interpreted as 7 coins landing on heads (with probability 2/3)  
 
 Two level model for two possible outcomes (ex) h/t, success/fail, yes/no, CpG/non-CpG, M/F, **diseased/healthy**)  
-&emsp; * Probability _p_ of success or complementary event failure (1-p) -> only for independent events (exchangeable)  
-&emsp; * ex) in n=15, if SSSSSFSSSSFFFSF, then #success=10, fail=5 -> n15, x=10
+&emsp; ◆ Probability _p_ of success or complementary event failure (1-p) -> only for independent events (exchangeable)  
+&emsp; ◆ ex) in n=15, if SSSSSFSSSSFFFSF, then #success=10, fail=5 -> n15, x=10
 
 ```{r}
-#1 Bernoulli trial (replicate) w/ sample size (trials) 15 w/ success probability of 0.3 = binomial random variable B(15, 0.3)  -> B(n,p)
+# 1 Bernoulli trial filp a coin 15 times w/ success probability of 0.3 == binomial form variable B(15, 0.3)  -> B(n,p)
   # Set seed is a state where random numbers are always the same for that seed (so that results can be replicated if same seed used) -> useful for binomial results b/c success/fail probabilities variable
 set.seed(235569515)
-rbinom(n=1, prob = 0.3, size = 15)
+rbinom(n=1, prob = 0.3, size = 15)  # Binomial form (sum of 15 Bernoulli trials)
 ```
 
 ```{r}
-#Q) If binom function is used 10 times (11 replicates), what is the most common outcome number?
+#Q) What is the most common outcome number after 0 to 15 Bernoulli trials? 
   # Check probability mass distribution
 
-#0 to 10 trials with sample size of 15, success probability of 0.3
-prob <- dbinom(0:10, prob=0.3, size=15)
+#0 to 15 trials, filp coin 15 times per trial, success probability of heads is 0.3
+prob <- dbinom(0:15, prob=0.3, size=15)
 round(prob, 2)
-
-
 ```
 ```{r}
 #Visualize previous question with a barplot
   # names.arg = vector names to be plotted under each bar
-barplot(prob, names.arg=0:10, col="red")
+barplot(prob, names.arg=0:15, col="red")
 ```
 
-* <mark style='background-color:lightblue'>Poisson Distribution</mark>
+```{r}
+#Q) output of the formula for k=3, p=2/3, n=4? B(4,2/3)
+  # per 1 Bernoulli trial
+    # n = flip a coin 4 times in 1 trial (size)
+    # p = probability of heads is 2/3
+    # k = expected success (heads) of 3
+  # dbinom will find success rate of 3 heads when flipped 4 times in one trial
+dbinom(x=3, prob=2/3, size=4)
+```
+
+
+* <mark style='background-color:lightblue'>Poisson Distribution</mark>  
+    ![**Poisson Formula, where λ=μ**](https://www.onlinemathlearning.com/image-files/xpoisson-distribution-formula.png.pagespeed.ic.s5RE-oEm0q.png)
+  * **Used when small probability of success (_p_) with large #of trials (_n_)**
+    * Can use in place of binomial distribution B(n,p) - reason = Poisson is simpler to calculate
+  * Poisson rate parameter λ=np
+```{r}
+# Q) Probability of mass distribution 
+  # Observe 0 to 12 mutation in genome, where n= 10^4 nucleotides, and probability of mutations is p=5x10^-4 per nt
+
+x = 0:12
+
+#Binomial B(n,p)
+dbinom(x, prob=0.0005, size=10000)
+
+#Poisson (λ=np)
+dpois(x, lambda=((10000*0.0005)))
+```
+
+Very similar output, binomial depends on 2 parameters (n,p) while poisson is a product of n*p
+
+```{r}
+# Another example using poisson formula and not the function (λ=5 and P(X=3))
+(5^3 * exp(-5))/factorial(3)  #same as dpois(x=3, lambda=5)
+```
+
+```{r}
+# Stimulate 300,000 mutation process (Bernoulli trials/generations) on 10,000nt sequence (size)
+  # Mutation rate 5x10^-4 (probability)
+
+rbinom(1, prob=5e-4, size=10000)
+stimulation = rbinom(n=300000, prob=5e-4, size=10000)
+barplot(table(stimulation), col="red")
+```
+
+* Example of using distributions: Epitope detecion
+  * Testing pharmaceuticals requires finding proteins that provoke unwated reactions (molecular sites of protein = epitopes)
+  * ELISA assay error model
+    * Known parameters
+      * False positive rate/baseline noise level per position = 0.01 (_p_)
+        * P(declare epitope | no epitope) -> Probability of declaring a hit, we think we have an epitope, when there is none
+          * The vertical bar in expressions means “X happens conditional on Y being the case”.
+      * Tested at total 100 different positions (Bernoulli trials _n_ when size=1 (condition of Bernoulli)) of the protein (independently)
+        * AKA: Experiment performed on 100 times on independent protein positions (replicate) == 100 positions
+      * From 50 patients
+        * Experiment performed on 50 patients (_size_)
+
+```{r}
+# Data from one patient
+  # 1 = potential epitope present (potential rxn), 0 = no potential epitope (no rxn)
+
+#p1 <- c(rep(0, times=21), 1, rep(0,times=78))
+#p1
+
+rbinom(n=100, prob=0.01, size=1) #Bernoulli for one patient (repeat test for 1 patient(size) x100 times(n) by independently sampling different protein positions)
+```
+```{r}
+# Stimulate sum of 50 independent Bernoulli variables (stimulate binomial/poisson when performed on 50 different people)
+  # n=100 protein positions (performed on 100 positions (re-sampled 100 times) per person)
+  # size(n)=50 patients
+  # p = 0.01 is low enough to use for Poisson (lambda=(0.01*50))
+  #If no allergic rxns, false+ve rate of one patient @each nt position -> prob 1/100 of being true(binary 1=epitope not present)
+    # sum 50 paitients (size), expect any nt position no epitope == sum 50 observed Bernoulli trials(each will output either 0 or 1 if epitope present/not present) should have Possion distribution parameter of 0.5 (n=50*p=0.01)
+
+s <- rpois(100, lambda=0.5) # or rbinom(100, prob=0.01, size=50)
+s
+barplot(s, ylim=c(0,7), width=0.7, xlim=c(-0.5,100.5), names.arg=seq(from=1, to=100, by=1), xlab="Assay Number", ylab="Patients") # or barplot(s, name.arg=1:100)
+```
+
+```{r}
+#Results from 50 assays summed (50 Bernoulli patients each replicatively tested for total 100 protein positions) using actual data
+  #n=100 positions on protein tested independently (replicates)
+  #size(n)=50 patients
+  #p=0.01
+
+load(here("BookStuff", "data", "e100.RData")) #here defaults directory of workspace, quotes are subdir
+e100
+barplot(e100, ylim=c(0,7), width=0.7, xlim=c(-0.5,100.5), names.arg=seq(along=e100), col="darkolivegreen")
+```
+
+So for assay 1/100, 2/50 people have a 0.01% probability of getting a false positive at a 1% probability (that is no epitope is actually present)  
+
+**Note** the y-axis bar of 7, what are the chances of seeing a value as large as 7, if no epitope present?  
+&emsp;  ◆  AKA what are the chances of seeing 7 patients test true for a false positive rate of 0.01%? (that is, we think a epitope is present but it's actually not)  
+&emsp;  ◆  If looking for a probability of seeing a number >=7 when considering one Poisson(size=50*prob=0.01) then calculate using
+
+<span class="math display">\[\begin{equation*}
+P(X\geq 7)= \sum_{k=7}^\infty P(X=k).
+\end{equation*}\]</span>
+Same as 1-P(X<=6)  
+&emsp;  ◆  The probability P(<=6) == Cumulative distribution function at 6  [more here](https://newonlinecourses.science.psu.edu/stat414/node/69/)  
+&emsp;  ◆  Use R function ```ppois```
+
+```{r}
+#2 methods of ppois
+
+#Method 1
+1-ppois(6,(50*0.01))
+
+#Method 2
+  #If lower.tail = TRUE(default) then probabilities are P[X ≤ x], meaning probability of 6, 5, 4, 3, 2, 1, 0 people == proability of smaller than 7
+  #If lower.tail = FALSE then probabilities are  P[X > x] so P(X>6) meaning probability of 7,8,9,10,11, ..., n people from 7 to 100 == proability of larger than or equal to 7
+ppois(6, 0.5, lower.tail=FALSE)
+```
+
+probability of seeing a count as large as 7, assuming no epitope reactions (false positive), is:
+<span class="math display">\[\begin{equation*}
+\epsilon=P(X\geq 7)=1-P(X\leq 6)\simeq10^{-6}.
+\end{equation*}\]</span>  
+
+<mark style='background-color:red'>No clue what's happening in the below</mark>  
+
+Which is actually not correct in this case because shouldn't ask chances of seeing Poisson as large as 7  
+&emsp;  ◆  Should be asking, "what are the chances that the maximum of 100 Poisson(0.5) trials is as large as 7?"  
+&emsp;&emsp; ◆ Use **extreme value analysis (max/min)** of Poisson distribution  
+&emsp;&emsp;&emsp; ◆ Order data values x<sub>1</sub>, x<sub>2</sub>, ..., x<sub>100</sub> and rename as x<sub>(1)</sub>, x<sub>(2)</sub>, ..., x<sub>(100)</sub>  
+&emsp;&emsp;&emsp;&emsp; ◆ Where x<sub>(1)</sub> is the smallest count within the 100 positions sampled  
+&emsp;&emsp;&emsp; ◆ x<sub>(1)</sub> & x<sub>(100)</sub>, the smallest and largest values, are the rank statistic over 100 values  
+&emsp;&emsp;&emsp; ◆ In this case, max value >=7 is the complementary event of the 100 counts being <=6 (7:100 & 6:0)  
+&emsp;&emsp;&emsp;&emsp; ◆ Complementary event probability sums to 1  
+&emsp;&emsp; ◆ Assumption -> positions are independen (the 100 events/positions are independent)    
+
+Proper calculation:
+
+<span class="math display">\[\begin{equation*}
+\begin{aligned}
+ P(x_{(100)}\geq 7)
+=1-P(x_{(100)} \leq 6)\\
+=1-P(x_{(1)}\leq 6 )\times P(x_{(2)}\leq 6 )\times \cdots \times P(x_{(100)} \leq 6 )\\
+=1-P(x_1\leq 6 )\times P(x_2\leq 6 )\times \cdots \times P(x_{100}\leq 6 )\\
+=1-\prod_{i=1}^{100} P(x_i \leq 6 ).\end{aligned}
+\end{equation*}\]</span>
+<center>The ∏ represents <u>product of a series of numbers</u>, analogous to that ∑ for sum</center>
+
+So using ϵ from above calculated by ```ppois```
+<span class="math display">\[\begin{equation*}
+\prod_{i=1}^{100} P(x_i \leq 6)=
+\left(P(x_i \leq 6)\right)^{100}=
+\left(1-\epsilon\right)^{100}.
+\end{equation*}\]</span>  
+
+**Or more generally (1-ppois)<sup>n trials</sup>**  
+
+Theoretical Proper calculation
+&emsp; Since ϵ ≃10<sup>−6</sup> is <1, approximating(1-ϵ)<sup>100</sup> using binomial theorem
+
+<span class="math display">\[\begin{equation*}
+(1-\epsilon)^n = \sum_{k=0}^n {n\choose k} \, 1^{n-k} \, (-\epsilon)^k  =
+1-n\epsilon+{n\choose 2} \epsilon^2 - {n\choose 3} \epsilon^3 + ... \simeq
+1-n\epsilon \simeq 1 - 10^{-4}
+\end{equation*}\]</span>  
+
+&emsp; or approximate by <span class="math inline">\(e^{-\epsilon} \simeq 1-\epsilon\)</span>, which is the same as <span class="math inline">\(\log(1-\epsilon)\simeq -\epsilon\)</span>.  
+
+<span class="math display">\[\begin{equation*}
+(1-\epsilon)^{100} = e^{\log\left((1-\epsilon)^{100}\right)} = e^{ 100 \log (1-\epsilon)} \simeq e^{-100 \epsilon}
+\simeq  e^{-10^{-4}} \simeq 1 - 10^{-4}.
+\end{equation*}\]</span>
+
+> Thus the correct probability of seeing a number of hits as large or larger than 7 in the 100 positions, if there is no epitope, is about 100 times the probability we wrongly calculated previously.
+
+> Both computed probabilities 10^−6 and 10^−4 are smaller than standard significance thresholds (say, 0.05, 0.01 or 0.001). The decision to reject the null of no epitope would have been the same. However if one has to stand up in court and defend the p-value to 8 significant digits as in some forensic court cases, that is another matter. The adjusted p-value that takes into account the multiplicity of the test is the one that should be reported, and we will return to this important issue in Chapter 6.
+
+
+Proper calculation using R stimulation  
+&emsp;  ◆ Things are more complex in real life, so we use **Monete Carlo** to compute probabilities  
+&emsp;  ◆ <mark style='background-color:yellow'>Monte Carlo = computer simulation using generative modelling to find probabilities of events</mark>
+
+```{r}
+# ex) generate 100,000 instqances of picking maxima from 100 Poisson distributed numbers (ex) 100 positions)
+  #lambda=0.5
+PoisMax = replicate(100000, {max(rpois(100,0.5))})
+table(PoisMax) #table helps categorize things and counts frequencies
+```
+
+For this generated example, a sum of frequency 7 is observed over 100,000 trials (max 7 & 8)
+```{r}
+#The approximation of this is P(Xmax >=7)
+
+#(PoisMax >= 7) #evaluates into logical TRUE/FALSE vector
+mean(PoisMax >=7) #converts TRUE/FALSE into 1/0 -> result of calculation is fraction of 1's == fraction of TRUE
+```
+
+**This output is approximately close to the theoretical calculation of 10<sup>-4</sup> as above**  
+<mark style='background-color:yellow'>&emsp;  ◆ Though the limitation is clear because Monte Carlo stimulations are never precise - only estimated close to precise</mark>
+
+> Everything we have done up to now is only possible because we know the false positive rate per position (p=0.01), we know the number of patients assayed (size=50) and the length of the protein (n=100), we suppose we have identically distributed independent draws from the model, and there are no unknown parameters. **This is an example of probability or generative modeling: all the parameters are known and the mathematical theory allows us to work by deduction in a top-down fashion.**
+
+> If instead we are in the more realistic situation of knowing the number of patients and the length of the proteins, but don’t know the distribution of the data, **then we have to use statistical modeling. This approach will be developed in Chapter 2.** We will see that if we have only the data to start with, we first need to fit a reasonable distribution to describe it. However, before we get to this harder problem, let’s extend our knowledge of discrete distributions to more than binary, success-or-failure outcomes.
 
 * **
 
 <p id="6"><b><font size="5">Multinomial distributions</b></font><a href="#0"><sup>Return</sup></a></p>
+* Modelling for more than 2 outcomes (beyond Heads/Tails)
+  * ex) 4 possible outcomes - 4 nucleotides A, C, G, T
+  * In binomial model, can assign probability as
+    * p = P(1) = p<sub>1</sub>  == 1 binary
+    * 1-p = p(0) = p<sub>0</sub> == 0 binary
+  * In the case of nucleotides, each with different outcomes/probabilities
+    * P<sub>A</sub>, P<sub>G</sub>, P<sub>C</sub>, P<sub>T</sub>
+    * And sum of P<sub>A</sub>+P<sub>G</sub>+P<sub>C</sub>+P<sub>T</sub> = 1
+```{r}
+# random number generator for multinomial distributions
+  # ex) A,G,C,T  (n=4) with pA=1/8, pG=3/8, pC=3/8, pT=1/8
+
+runif(n=4, min=1/8, max=3/8)
+
+
+```
+
+<mark style='background-color:red'>No clue what's happening in the below</mark>  
+
+> <strong>Mathematical formulation.</strong> Multinomial distributions are the most important model for tallying counts and R uses a general formula to compute the probability of a <strong>multinomial</strong> vector of counts <span class="math inline">\((x_1,...,x_m)\)</span> for outcomes that have <span class="math inline">\(m\)</span> boxes with probabilities <span class="math inline">\(p_1,...,p_m\)</span>:
+<span class="math display">\[\begin{equation*}
+\begin{aligned}
+P(x_1,x_2,...,x_m \;|\; p_1,...,p_m)
+  =\frac{n!}{\prod x_i!}\prod p_i^{x_i}\\
+  ={{n}\choose{x_1,x_2,...,x_m}} \; p_1^{x_1}\,p_2^{x_2} \cdots p_m^{x_m}.\end{aligned}
+\end{equation*}\]</span>
+
+
+> The first term reads: the joint probability of observing count <span class="math inline">\(x_1\)</span> in box 1 and <span class="math inline">\(x_2\)</span> in 2 and … <span class="math inline">\(x_m\)</span> in box m, given that box 1 has probability <span class="math inline">\(p_1\)</span>, box 2 has probability <span class="math inline">\(p_2\)</span>, … and box <span class="math inline">\(m\)</span> has probability <span class="math inline">\(p_m\)</span>.</span></p>
+<span class="marginnote">The term in brackets is called the multinomial coefficient and is an abbreviation for <span class="math display">\[{{n}\choose{x_1,x_2,...,x_m}}=\frac{n!}{x_1!x_2!\cdots x_m!}.\]</span> So this is a generalization of the binomial coefficient – for <span class="math inline">\(m=2\)</span> it is the same as the binomial coefficient. </span></p>
+
+```{r}
+#ex) Assume A,G,C,T are all equally likely (0.25 ea), what is the probability of observing 4A, 2G, 0C, 0T? -> 8 characters (4A, 2G) of 4 equally likely types(AGCT 0.25 ea)
+  # Use stimulation experiments to check if data is consistent (each nt w/ equal probability)
+pvec <- rep(0.25, times=4) #repeat probability 4 times in a vector
+t(rmultinom(1, prob=pvec, size=8)) #transpose t(col<->row) the matrix made by rmultinom(1 trial, prob, 8 samples)
+```
+
+Here, you can see that outcomes using equal probabilities don't have equal outcomes
+
+```rmultinom(n = 8, prob = pvec, size = 1)``` vs ```rmultinom(n = 1, prob = pvec, size = 8)```  
+&emsp; size=1 represents 1 action in n=8 trials/repeats (output =1 or 0), size=8 represents 8 actions in n=1 trials (sum of 1's per row of probabilities)
+
+* Simulating for power
+  * Monte Carlo for stimulation of multinomial distribution
+  * ex) How big of a sample size is needed for my experiment?
+    * **Power in statistics = probability of detecting something if present == True positive rate**
+    * Typically aim for >=80% power when planning exps
+      * Interpretation: Run experiment many times, then 20% of the times will fail to yield significant results
+        * **H<sub>0</sub>** = null hypothesis (DNA data collected presents each of the 4nts at equal probability ea0.25)
+          * Null = baseline, nothing is happening
+          * Want to reject Null hypothesis, because alternative hypothesis (**H<sub>a</sub>**) means something is occuring (non-equal probabilities)
+          
+```{r}
+# ex) Seq length n=20, want to see if original distribution of nts is fair or comes from alternative process
+  # Stimulate 1000 times using null hypothesis (equal probs = 0.25 each nt)
+
+pvec1=c(0.25, 0.25, 0.25, 0.25)
+ObsUnder0 <- rmultinom(n=1000, prob=pvec1, size=20)
+dim(ObsUnder0) #find dimensions of the matrix - 4 rows with 1000 cols
+ObsUnder0[,1:11] #subset to view only first 11 columns
+mean(ObsUnder0)
+```
+
+Each column is a stimulation per the 4nucleotides (row)  
+&emsp; high variation per cell (expected value is 20/4 = 5 -- size 20/4 at equal probability should = 5)  
+
+Make a test  
+&emsp; Need to measure variability expcted and upper limits of variability  
+</span></p>
+<span class="math display" id="eq:Gen-stat">\[\begin{equation}
+{\tt stat}=\frac{(E_A-x_A)^2}{E_A}+
+\frac{(E_C-x_C)^2}{E_C}+
+\frac{(E_G-x_G)^2}{E_G}+
+\frac{(E_T-x_T)^2}{E_T}
+=\sum_i\frac{(E_i-x_i)^2}{E_i}
+\tag{1.1}
+\end{equation}\]</span>
+Sum of squares of differences between observed values (x<sub>A</sub>) & expected values (E<sub>A</sub>) relative to expected values (E<sub>A</sub>)  
+&emsp; This measure weights each of the square residuals relative to their expected values.
+
+```{r}
+#Check first 3 columns of stimulated data - see how much they differ from expected
+
+expected0 = pvec1*20 #seq length = 20 --> this gives EA, EC, EG, ET
+sum((ObsUnder0[,1]-expected0)^2/expected0) #column 1 in all rows
+sum((ObsUnder0[,2]-expected0)^2/expected0) #column 2 in all rows
+sum((ObsUnder0[,3]-expected0)^2/expected0) #column 2 in all rows
+```
+
+```{r}
+#Check all 1000 columns via making a function
+
+stat = function(obsvd, exptd) {
+  sum((obsvd - exptd)^2 / exptd)
+}
+#function(multinomial stimulated matrix, expected values)
+
+stat(ObsUnder0[, 1], expected0)
+
+```
+
+> To get a more complete picture of this variation, we compute the measure for all 1000 instances and store these values in a vector we call S0: it contains values generated under H0. We can consider the histogram of the S0 values an estimate of our null distribution.
+
+```{r}
+S0 <- apply(ObsUnder0, 2, stat, expected0) #apply function stat to margin=2=column of matrix ObsUnder0, need to specify expected0 the other parameter of function stat()
+summary(S0)
+hist(S0,breaks=25,col="blue",main="Title")
+```
+
+summary() shows that once every coulmn of the multinomial matrix has applied stat() calculation, the spread is variable  
+&emsp; From this data stimulation, can approximate a 95% quartile (separate 95% of values from the top 5%)
+```{r}
+q95 <- quantile(S0, probs=0.95)
+q95
+```
+
+Interpretation: 5% of S0 values are larger than 7.6  
+&emsp; Use this for critical value (0.05) of data test - reject H0 came from a fair process w/ equally likely probability of nucleotides (if weighted sum of squares ```stat``` is > 7.6)  
+
+Determining test power
+
 
 * **
 
 <p id="7"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
-
+* 1.1 
+  * ```pnorm``` and ```pbinom```
 * **
 
 <p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -434,12 +620,17 @@ wget -r -np -nH --cut-dirs=3 -R SmoothLineP134h7.png http://web.stanford.edu/cla
 > **Renaming**  
   * sudo apt install rename  #need to download b/c perl version not on ubuntu
   * rename -v 's/<pattern>/<replacement>/g'  
-  * -n is to view change, -v is permanent, /g is recursive replacemnet
+  * -n is to view change, -v is permanent, /g is recursive replacement, s/ is substitute
   
 ![**Markdown spacing**](https://i.stack.imgur.com/bMNFi.png)
 
+* Here package defaults at your working directory
 
-> A Bernoulli random variable has two possible outcomes: 0 or 1. A binomial distribution is the sum of independent and identically distributed Bernoulli random variables. ... The random variable that represents your winnings after one coin toss is a Bernoulli random variable.
+```{r}
+test <- rbinom(100, prob=1, size=50) #resampled for 100 protein positions, probability of false positive = 100%, testing 50 patients
+barplot(test, ylab = "Number of people tested", xlab = "test on protein position", names.arg =1:100)
+```
+
 
 </body>
   
