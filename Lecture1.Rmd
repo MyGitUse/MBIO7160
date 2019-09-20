@@ -235,7 +235,7 @@ P(X=k) = \frac{n\times (n-1)... (n-k+1)}{k\times(k-1)... 1}\; p^k\, (1-p)^{n-k} 
   # Probability tails = 1/3, heads = 2/3
 rbinom(1, prob=2/3, size=12)
 ```
-Output is interpreted as 7 coins landing on heads (with probability 2/3)  
+Output is interpreted as 8 coins landing on heads (with probability 2/3)  
 
 Two level model for two possible outcomes (ex) h/t, success/fail, yes/no, CpG/non-CpG, M/F, **diseased/healthy**)  
 &emsp; ◆ Probability _p_ of success or complementary event failure (1-p) -> only for independent events (exchangeable)  
@@ -586,7 +586,59 @@ Interpretation: 5% of S0 values are larger than 7.6
 &emsp; Use this for critical value (0.05) of data test - reject H0 came from a fair process w/ equally likely probability of nucleotides (if weighted sum of squares ```stat``` is > 7.6)  
 
 Determining test power
+&emsp; Find probability that the test (based on weighted sum-of-square difs) will detect data not from H0  
+&emsp; To do this, find probability that rejects H0 via stimulation
+```{r}
+# Generate 1000 stimulations of HA (alternarive) via paramaterized pvecA
+pvecA <- c(3/8, 1/4, 3/12, 1/8)
+observed <- rmultinom(1000, prob=pvecA, size=20) #length of seq = 20
+dim(observed)
+observed[,1:7] #plot cols 1 to 7
+apply(observed, 1, mean)  #apply mean function to margin 1(rows) of matrix
+expectedA <- pvecA*20
+expectedA
+```
 
+Similar to H0 stimulation, HA stimulation also has observed values which vary  
+
+How often (out of 1000 instances) does the test detect data differing (HA) from H0  
+
+The test doesn't reject in the first observation/stimulation (col1 -> 7,7,3,3) b/c statistic value within 95th percentile
+
+```{r}
+stat(observed[,1], expectedA) #check statistic w/ function on column1 of HA stimulation
+S1 <- apply(observed,2,stat,expectedA)
+q95 #95th percentile of H0
+sum(S1>q95) #Sum if stat of HA stimulations > H0 95th percentile
+power <- mean(S1>q95)
+power
+```
+
+In 1000 stimulations of HA, the test found 56 data values from HA distribution --> P(Reject H0|HA) = 0.051 or 5.1%  
+
+Interpretation: With a seq length of n=20, the power to reject H0 for HA is ~5.1%  
+
+Usually aim for a power of >=0.8
+```{r}
+#attempt to simulate p=0.8 using a higher sequence length 
+pvecA1 <- c(3/8, 1/4, 3/12, 1/8)
+observed1 <- rmultinom(1000, prob=pvecA1, size=31) #length of seq = 31
+dim(observed1)
+observed1[,1:7] #plot cols 1 to 7
+apply(observed1, 1, mean)  #apply mean function to margin 1(rows) of matrix
+expectedA1 <- pvecA1*20
+expectedA1
+stat(observed1[,1], expectedA1) #check statistic w/ function on column1 of HA stimulation
+S11 <- apply(observed1,2,stat,expectedA1)
+q95 #95th percentile of H0
+sum(S11>q95) #Sum if stat of HA stimulations > H0 95th percentile
+power1 <- mean(S11>q95)
+power1
+```
+
+Another way  to calculate the 95th percentile without Monte Carlo stimulation = Q-Q plots in chapter 2  
+&emsp; * Note the fuction ```stat``` is actually the Chi-square distribution w/ 3 degreees of freedom (X<sup>2</sup><sub>3</sub>)  
+&emsp; * Monte Carlo stimulations more useful for low parametric probabilities w/ counts near 0 (which chi-square doesnt work for)
 
 * **
 
