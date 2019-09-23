@@ -643,8 +643,72 @@ Another way  to calculate the 95th percentile without Monte Carlo stimulation = 
 * **
 
 <p id="7"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
-* 1.1 
-  * ```pnorm``` and ```pbinom```
+* 1.1 - Cumulative distribution functions (pXXX)
+  * ```ppois``` and ```pbinom```
+
+* 1.2
+```{r}
+#B(size=10, p=0.3) where X=2
+dbinom(x=2, size=10, prob=0.3)
+
+#For cumulative distribution where P(X<=2) (everything less than/equal to X=2)
+sum(dbinom(0:2, size=10, prob=0.3))
+```
+
+* 1.3
+```{r}
+#????
+
+#PosMax <- function(maxprob, n, lambda){
+  #maxprob <-  dpois(n, lambda)
+#}
+```
+
+* 1.4
+
+```{r}
+#?????
+
+#PosMax <- function(maxprob=1, n=2, lambda=3){
+  #maxprob <-  dpois(n, lambda)
+#}
+```
+
+* 1.5
+```{r}
+#epitope problem
+  # p=0.01
+  # n=100
+  # size=50
+aa <- rbinom(n=100, prob=0.01, size=50)
+
+#Prob of >=9
+1-ppois(6, lambda=(0.01*50))
+
+#With stimulations
+aa <-  replicate(100000, {
+  max(rpois(100, 0.5))
+})
+table(aa)
+
+mean( aa >= 9 )
+```
+
+* 1.6
+```{r}
+?Distributions
+```
+
+
+* 1.7
+```{r}
+#Probability of having 
+dd <- rpois(n=100, lambda=(3))
+mean(dd)
+var(dd)
+```
+
+  
 * **
 
 <p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
