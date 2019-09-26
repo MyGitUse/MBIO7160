@@ -662,6 +662,9 @@ sum(dbinom(0:2, size=10, prob=0.3))
 #PosMax <- function(maxprob, n, lambda){
   #maxprob <-  dpois(n, lambda)
 #}
+
+#1-x to find maximum
+#(m-1 to find complement of max) -> probability of maximum
 ```
 
 * 1.4
@@ -692,11 +695,17 @@ aa <-  replicate(100000, {
 table(aa)
 
 mean( aa >= 9 )
+
+#as extreme as 1000 obs by inverse (1/x)
+#result_vector >= max doesn't work because result_vector is 0's and 1's which doens't evaluate >=max -> need to do max((result_vector) >=1)
 ```
 
 * 1.6
 ```{r}
 ?Distributions
+#beta distribution - unequal probability mothers & babies
+  #then input into binomial
+  # x= probabilities
 ```
 
 
@@ -708,7 +717,11 @@ mean(dd)
 var(dd)
 ```
 
-  
+* 1.8
+```{r}
+
+```
+
 * **
 
 <p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
