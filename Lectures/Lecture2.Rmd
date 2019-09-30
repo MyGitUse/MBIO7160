@@ -5,6 +5,7 @@ output: html_notebook
 
 library(here)
 library(vcd)
+library(Biostrings)
 
 <body>
       <font face = "Times New Roman">
@@ -346,7 +347,7 @@ f(\theta\,|\,n,y) = f(y\,|\,n,\theta)={n \choose y} \, \theta^y \, (1-\theta)^{(
 \tag{2.5}
 \end{equation}
   
-    * when {n obs \choose x sucess} large - then can use log of likelihood for the formula
+    * when {n obs \choose x sucess} large (~e<sup>115</sup>) - then can use log of likelihood for the formula
     
     \begin{equation*}
 \log f(\theta |y) = 115 + 40\log(\theta)+(300-40)\log(1-\theta).
@@ -363,13 +364,30 @@ loglikelihoodBinom <- function(theta, n=300, k=40){
 ```{r}
 # Assume theta parameter can range from 0 to 1
 thetas = seq(0, 1, by=0.001)
-plot(x=thetas, y=loglikelihoodBinom(thetas), xlab=expression(theta), ylab=expression(paste("log f(",theta,"|y)")), type="l")
+plot(x=thetas, y=loglikelihoodBinom(thetas), xlab=expression(theta), ylab=expression(paste("log f(",theta, " | y)")), type="l")
 ```
 
-
+* Maxima here is k/n = 40/300 = 0.133
 
 * **
 <p id="7"><b><font size="5">More boxes:multinomial data</b></font><a href="#0"><sup>Return</sup></a></p>
+* DNA nucleotides - purines(A G) & pyrimidines (C T)
+  * Binomial model works for purines/pyrimidines as sets but not all together (ACGT) -> needs multinomial model
+* Nucleotide bias
+  * Estimation testing + Simulation
+```{r}
+staph <- readDNAStringSet(here("BookStuff", "data", "staphsequence.ffn.txt"), "fasta")
+staph[1]
+letterFrequency(staph[[1]], letters="ACGT", OR=0)
+```
+  
+* Double brackets in the above code [[i]] is used to extract the ith gene as DNA string -> length 1362 (extract each nt)
+  * Single brackets [i] returns DNAStringSet w/ single DNAString -> length 1 (extract sequence)
+
+```{r}
+
+```
+
 
 * **
 <p id="8"><b><font size="5">The χ<sup>2</sup> distribution</b></font><a href="#0"><sup>Return</sup></a></p>
