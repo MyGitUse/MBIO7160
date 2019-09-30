@@ -112,19 +112,27 @@ gf1.1 <- goodfit(e99, "poisson")
 rootogram(gf1.1, xlab="Levels" ,rect_gp=gpar(fill="green"), main="Poisson good-fit test")
 ```
 
-* Q) Calibrate plot w/ known parameter of lambda=0.05 to generte 100 Poisson distributed numbers ```rpois``` and generate rootogram
-  * lambda is the poission mean of theroretical distribution (estimated by sample mean)
+
+```{r}
+# Q) Calibrate plot w/ known parameter of lambda=0.05 to generte 100 Poisson distributed numbers ```rpois``` and generate rootogram
+
+x <- rpois(n=100, 0.05)
+x1 <-  goodfit(x, "binomial")
+rootogram(x1, xlab="Levels" ,rect_gp=gpar(fill="green"), main="Poisson good-fit question")
+```
+
+* lambda is the poission mean of theroretical distribution (estimated by sample mean)
   * Solution
     * Poisson is determined by one parameter, lambda AKA the poisson mean
       * If we assume the data follows a Poisson distribution based upon the rootogram, then need to estimate lambda because parameter is missing
       * To do this, the estimated lambda value is denoted <span class="math inline">\(\hat{\lambda}\)</span> 
-        * Or also known as the **maximum likelihood estimator (MLE)**
+        * Or also known as the **likelihood estimator (MLE)**
         * Note - outlier max value was removed beforehand to generate e99 and estimate Poisson distribtuion
           * Going to use e100 for this example because real world data wouldn't notice outliers
           * Outliers will increase the mean estimate of <span class="math inline">\(\hat{\lambda}\)</span>
             * More likely to observe an outlier max of 7 in null hypothesis H0 == Larger p-value
               *  <mark style='background-color:yellow'>If p-value is small, the analysis is probably due to something real</mark>
-              * conservative: error on side of caution by assuming not detecting something
+              * conservative: err on side of caution by assuming not detecting something
 ```{r}
 # Estimate poisson parameter
   # 1) Tally up counts per level
@@ -137,23 +145,234 @@ table(rpois(n=100,lambda=2))
 table(rpois(n=100,lambda=3))
 ```
 
-* the counts for the tables generated with these predicted means are way different from the data
-  
+* the counts for the tables generated with these predicted means are way different from the data (note counts for levels 3, 4, 5, 6)
+
+* Q) Repeat simulation w/ different lambda values to find one close to counts (Brute force)
+  * Solution - mathematical equation to **find lambda value maximaizing probability of observing data**
+    * Calculate probability of data if Poisson mean (m)
+      * **Assumption** -> picking from data points independently w/ replacment
+        * Probability == product of individual probabilities
+      * ex) P(58 zeros, 34 ones, 7 twos, 1 seven | data Poisson(m)) = P(0)<sup>58</sup> x P(1)<sup>34</sup> x P(2)<sup>7</sup> x P(7)<sup>1</sup>
+        * Probability is **likelihood function of lambda** when only data is available (no parameters)
+        
+        \begin{equation*}
+L\left(\lambda ,\,\ x=(k_1,k_2,k_3,...)\right) = \prod_{i=1}^{100} f(k_i)
+\end{equation*}
+           * Where L = likelihood
+           * f(k) = (e<sup>-lambda</sup>)(lambda<sup>k</sup>)/(k!) == Poisson formula
+
+        * Instead of using product of k<sub>i</sub> levels, just **use log**
+          * **logs are always increasing, but once it reaches the max interval this is equivalent to max probability**
+        
+```{r}
+# Assuming a lambda=3=m from the last question, use prod() function to multiply each probability
+  # 0, 1, 2, 7 are the levels of the dataset e100
+  # power of 58, 34, 7, 1 is the counts of each level
+  # Recall chapter 1 to find max probability of observing a value as extreme as 7 (1-P(x <= (1-max))^n)
+    # However, we are not looking for cumulative probabilities (P<=x) -> ppois() 
+prod(dpois(x=c(0,1,2,7), lambda=3)^c(58,34,7,1))
+```
+
+```{r}
+# Q) Try out when lambda=m= 0, 1, 2 or a non-integer 0.4
+#test <- function(i){
+#  for(i in 0:2){
+#    x <- prod(dpois(x=c(0,1,2,7), lambda=i)^c(58,34,7,1))
+#    print(x)
+#  }
+#}
+#test()
+
+test <- function(x){
+  for(i in x){
+    x <- prod(dpois(x=c(0,1,2,7), lambda=i)^c(58,34,7,1))
+    print(x)
+  }
+}
+test(c(0:2, 0.4))
+```
+
+```{r}
+# Likelihood log method
+  # sum() function because one lambda value will be applied to 100 data points = 100 output evaluations which get summed per lambda
+loglikelihood = function(lambda, data=e100){
+  sum(log(dpois(x=data,lambda)))
+}
+```
+
+```{r}
+# Generate vector of lambda values
+lambdas = seq(from=0.05, to=0.95, length=100)
+```
+
+```{r}
+# Compute likelihood using lambda vector
+# To a vectory of numbers (lambdas) apply function (vapply())
+  # function applied to EACH lambda value is loglikelihood made above
+  # an additonal function is converting the output numbers to numberic with length 1
+    # same as saying as.numeric(loglikelihood(lambdas[1])), as.numeric(loglikelihood(lambdas[2])), as.numeric(loglikelihood(lambdas[3])), ..., as.numeric(loglikelihood(lambdas[n]))
+
+loglikelihood2 = vapply(lambdas, loglikelihood, numeric(length=1))
+```
+
+```{r}
+m0 = mean(e100) #Find mean of the 100 data values
+m0
+
+# Visualize with plot
+  # lwd is the thickness of the line/points
+plot(x=lambdas, y=loglikelihood2, ylab="Sum of log of likelihood probabilities", xlab=expression(lambda), type="p", col="red", lwd=2, cex=0.5)
+abline(v=m0, col="blue", lwd=2) #v for vertical
+abline(h=loglikelihood(m0), col="green", lwd=2) #h for horizontal - find sum of log when lambda = mean of all 100 values
+```
+
+* Note the intersecting point between the mean of 100 data points is the lambda value 0.55
+
+* Shortcut to vapply is ```goodfit()```
+  * Output of ```goodfit()``` is a list
+    * One component _par_ contains the values of the fitted parameters of the distribution specified
+    * For this example of poission, only the lambda parameter
+```{r}
+gf <- goodfit(e100, "poisson")
+typeof(gf) #see if dataframe, matrix, vector, or list
+names(gf) #column names of list
+gf$par  #call value of column par
+```
+
+* So basically
+  1. use ```goodfit()``` on data testing the distributions: poisson, binomial, nbinomial
+  2. use a ```rootogram()``` from package vcd to visualize which distriutions best aligns to x-axis
+  3. go back to stored ```goodfit()``` variable and call $par to find estimated parameters
+
+```{r}
+table(e100) #this is the expected counts of the real data
+
+#Testing how closely the estimated parameter matches the actual data
+aa <- goodfit(e100, "poisson")
+rootogram(aa,  xlab="Levels" ,rect_gp=gpar(fill="green"), main="Poisson good-fit final test") #bars align w/ x-axis approximately - 7 is obvious outlier because it goes negative (Not really obvious unless outlier removed and test multiple distributions as above with e99)
+aa$par #since Poisson matches well, this is parameters equalling lambda
+```
+```{r}
+# Test the estimated poisson parameter
+table(rpois(n=100, lambda=0.55))
+```
+
+* Close enough I guess?
+
+```{r}
+#from ch1 use lamba = 0.55 instead of 0.5
+maxes = replicate(1e5, {max(rpois(n=100,lambda=0.55))})
+table(maxes)
+mean(maxes>=7)
 ```
 
 
 * **
 
 <p id="5"><b><font size="5">Classical statistics for classical data</b></font><a href="#0"><sup>Return</sup></a></p>
+* Mathematic proof that finding the mean maximizes (log)likelihood
+
+\begin{align}
+\log L(\lambda, x)=&\sum_{i=1}^{100} -\lambda +k_i \log\lambda-\log (k_i!) \tag{2.1} \\
+=&-100\lambda +\log\lambda\left(\sum_{i=1}^{100} k_i\right)  + \text{const.} \tag{2.2} 
+\end{align}
+
+* Statistical approach - bottom up approach to infer model parameters
+  * Estimate parameter from dataset
+  * Choose what distribution best fits data (Evaluate goodness of fit)
+* Statistical testing
+  * Null model for data
+    * means an "uninteresting baseline" = all obs from same random distribution regardless of which group or treatment
+    * Test for alternative = obs not from same random distribution
+  * Other situations - 2 competeing models to compare
+  
+* Q) What is the value of modeling w/ known distribution? Ie) why know what variable has Poisson distribution?
+  * A) Models are consise, expressive representations of data generation
+    * In Poisson - knowing lambda gives knowledge of the distribution -> find probability of extremely rare events
+    * Can also determine regression
+      * Know how count-based response variable (result of counting) depends on continous covariate
+      * ex) linear regression: y= ax+b+e
+        * y = response variable
+        * x = covariate x
+        * a & b = parameters (estimated)
+        * e = residual
+        * Normal distribution probability model (need to estimate variance)
+      * Can apply similar regression model for count data, but probability distribution of residuals are non-normal
+        * **Generalized linear model**
+          * seen in CH8 & 9
+    * If known that probability model is Poisson, binomial, or multinomial distribution (or other parametric test) - can find parameters of a model & compute quantities (p-values & confidence intervals)
 
 * **
+
 <p id="6"><b><font size="5">Binomial distributions and maximum likelihood</b></font><a href="#0"><sup>Return</sup></a></p>
+* Two parameters for binomial distributions (n trials (usually known) & p probability of 1 trial (unknown))
+
+```{r}
+# ex) Sample of n=120 males, tested for color blindness - 0 not blind & 1 blind
+cb <- c(rep(0, 110), rep(1,10))
+table(cb)
+
+```
+
+```{r}
+# Find the estimated-value of this data (p hat)
+
+bb <- goodfit(cb, "binomial")
+bb$par
+```
+
+```{r}
+# Perform likelihood calculation, similar to Possion example, find likelihood of possible outcome based upon vector of estimated probabilities and plot to find max
+  # Actual binomial formula B(n,p) - chance of seeing x successes when there are n trials
+  # Rbinom function
+    # size = #number of trial is length of vector
+    # n = observations based on sum of seeing success (1's) -> sum(cb) - seeing
+probs <- seq(0, 0.3, by=0.005) #This makes a vector of estimated probabilities - MAY NOT CONTAIN BEST MATCH EXACT PROB
+likelihoodBinom <- dbinom(x=sum(cb), size=length(cb), prob=probs) #each probability from vector(61) applied -> output(61) 
+  # Probability of seeing a number as large as x = sum(cb) = 10, when size(n)=length(cb)=120 trials B(n,p) - P(x=10)
+plot(x=probs, y=likelihoodBinom, pch=16, xlab="Probability of Success", ylab="likelihood probability simulation", cex=0.6)
+probs[which.max(likelihoodBinom)] #in probs vector which is the closest max value matching likelihoodBinom vector
+```
+
+* Likelihood for binomial distribution
+  * likelihood and probability are the same function - Have different interpretations
+    * Probability to see set of values when given parameters (probability - one p)
+    * Data is fixed but what parameter value will fit the data better (likeliness - test multi p)
+  * ex) If B(n,p) where n=300 and observe x=40 successes - the binomial distribution
+    * where theta = estimate parameter
+  
+  \begin{equation}
+f(\theta\,|\,n,y) = f(y\,|\,n,\theta)={n \choose y} \, \theta^y \, (1-\theta)^{(n-y)}.
+\tag{2.5}
+\end{equation}
+  
+    * when {n obs \choose x sucess} large - then can use log of likelihood for the formula
+    
+    \begin{equation*}
+\log f(\theta |y) = 115 + 40\log(\theta)+(300-40)\log(1-\theta).
+\end{equation*}
+
+```{r}
+# equivalent function of log binomial
+
+loglikelihoodBinom <- function(theta, n=300, k=40){
+  115+(k*log(theta))+((n-k)*log(1-theta))
+}
+```
+
+```{r}
+# Assume theta parameter can range from 0 to 1
+thetas = seq(0, 1, by=0.001)
+plot(x=thetas, y=loglikelihoodBinom(thetas), xlab=expression(theta), ylab=expression(paste("log f(",theta,"|y)")), type="l")
+```
+
+
 
 * **
 <p id="7"><b><font size="5">More boxes:multinomial data</b></font><a href="#0"><sup>Return</sup></a></p>
 
 * **
-<p id="8"><b><font size="5">he χ<sup>2</sup> distribution</b></font><a href="#0"><sup>Return</sup></a></p>
+<p id="8"><b><font size="5">The χ<sup>2</sup> distribution</b></font><a href="#0"><sup>Return</sup></a></p>
 
 * **
 <p id="9"><b><font size="5">Chargaff’s Rule</b></font><a href="#0"><sup>Return</sup></a></p>
