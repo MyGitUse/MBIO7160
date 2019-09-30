@@ -385,8 +385,27 @@ letterFrequency(staph[[1]], letters="ACGT", OR=0)
   * Single brackets [i] returns DNAStringSet w/ single DNAString -> length 1 (extract sequence)
 
 ```{r}
-
+# Similar procedure as 1.8
 ```
+
+* Selection acts on nucelotide frequencies
+  * Example question: Do the first 10 genes from the staph data come from the same multinomial?
+    * AKA do nucleotides occur in the same proportions for the first 10 genes? -yes = no selection, -no = selection
+```{r}
+letterfreq <- vapply(staph, letterFrequency, FUN.VALUE=numeric(4), letters="ACGT", OR=0) #to vector staph apply the function letterFrequency count for letters "A|C|G|T" & output counts as numeric with length 4 
+colnames(letterfreq) <- paste("gene", seq(along=staph)) #replace the column names of letterfreq vector w/ gene+number in staph vector
+tab10 <- letterfreq[,1:10] # subset to columns 1 to 10 (gene 1 to 10)
+computeproportions <- function(x){x/sum(x)} #make function that takes x and divides by sum of x (takes single value & divides by column or row totol depending on margin)
+prob10 <- round(apply(tab10, 2, computeproportions), digits=2) # apply to each value in those 10 columns the computeproportions() function made
+prob10
+```
+
+```{r}
+p0 = rowMeans(prob10)
+p0
+```
+
+* p0 is vector of multinomial probabilities for all 10 genes
 
 
 * **

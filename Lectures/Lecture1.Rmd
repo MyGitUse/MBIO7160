@@ -3,6 +3,9 @@ title: "Chapter 1: Generative Models for Discrete Data"
 output: html_notebook
 ---
 
+library(here)
+library(tidyverse)
+
 <body>
       <font face = "Times New Roman">
   
@@ -756,9 +759,27 @@ wget -r -np -nH --cut-dirs=3 -R SmoothLineP134h7.png http://web.stanford.edu/cla
 * Here package defaults at your working directory
 
 ```{r}
-test <- rbinom(100, prob=1, size=50) #resampled for 100 protein positions, probability of false positive = 100%, testing 50 patients
+test <- rbinom(100, prob=1, size=50) #resampled for 100 protein positions, probability of false positive = 100%, testing 50 patients (trials)
 barplot(test, ylab = "Number of people tested", xlab = "test on protein position", names.arg =1:100)
 ```
+
+* [More on Statistical Power](https://www.statisticshowto.datasciencecentral.com/statistical-power/)
+
+<button data-toggle="collapse" data-target="#demo1">Click for info</button>
+<div id="demo1" class="collapse">
+> The statistical power of a study (sometimes called sensitivity) is how likely the study is to distinguish an actual effect from one of chance. It’s the likelihood that the test is correctly rejecting the null hypothesis (i.e. “proving” your hypothesis). For example, a study that has an 80% power means that the study has an 80% chance of the test having significant results.  
+> &emsp; > A high statistical power means that the test results are likely valid. However, as the power increases, so does the possibility of a Type II error.  
+  &emsp; > A low statistical power means that the test results are questionable.
+  
+> Statistical power helps you to determine if your sample size is large enough.
+It is possible to perform a hypothesis test without calculating the statistical power. If your sample size is too small, your results may be inconclusive when they may have been conclusive if you had a large enough sample.
+
+> Power analysis is a method for finding statistical power: the probability of finding an effect, assuming that the effect is actually there. To put it another way, power is the probability of rejecting a null hypothesis when it’s false. Note that power is different from a Type II error, which happens when you fail to reject a false null hypothesis. So you could say that power is your probability of not making a type II error.
+
+> A Type I error is the incorrect rejection of a true null hypothesis. Alpha is the size of the test. A Type II error is where you don’t reject a false null hypothesis. This is the β. Beta( β) is the probability that you won’t reject the null hypothesis when it is false. The statistical power is the complement of this probability: 1- β
+
+[TypeI & II Errors](https://www.statisticshowto.datasciencecentral.com/probability-and-statistics/statistics-definitions/type-i-error-type-ii-error-decision/)
+</div>
 
 
 # Presenter [notes](https://github.com/kozakb/STAT_4600/blob/master/Chapter_One/generative_models_for_discrete_data_merge.pdf)
@@ -809,6 +830,7 @@ barplot(test, ylab = "Number of people tested", xlab = "test on protein position
         * Cumulative proability distibution = Probability random var X falls within a range (X<=1) == P(X=0) + P(X=1)
         * Uniform probability disribution = Values (x) of random var X occurs w/ equal probability P(X=x<sub>k</sub>) = 1/k
           * Each outcome is represented by random var (X = k)
+          
 ```{r}
 # Probability (X) of having exactly 5 mutations (x)
 dpois(x=5,lambda=5)
@@ -816,6 +838,7 @@ dpois(x=5,lambda=5)
 # Probability (X) of multiple multations (x = 0:20)
 dpois(x=0:20, lambda=5)
 ```
+
 * Bernoulli ```rbinom(n,prob,size=1)```
   * Binary w/ 2 outcomes (assigned 1 or 0)
   * Bernoulli prob(p) == binomial distribution w/ size(n) & prob(p)
@@ -854,19 +877,181 @@ dmultinom(x=c(4,3,1), prob=c(0.5,0.3,0.2))
 
 * Monte Carlo Stimulations
   * Uses randomness to solve multifactorial questions
-    * Used for: optimization, numerical integration, generate/stimulate probability distribution
+    * Used for: optimization, numerical integration, <u>generate/stimulate probability distribution outcome</u>
   * ex) stimulate power for hypothesis test
     * power = probability to reject H0 when H0 is false
       * AKA **True positive rate**
     * Ex) Test H0 of DNA data is actually from a fair process
       * H0 = A,C,T,G is all equal probability of 0.25 vs HA = A,C,T,G do not have equal probabilities
       * Randomly sample a sequence of length 20 using multinomial distribution (size=20) & assume equal probability per nt 
-        * stimulate 10 times (n=10 rbase - 10 observations)
+        * stimulate 1000 times (n=1000 in rbase == 1000 observations)
 ```{r}
 set.seed(20190919)
 rmultinom(n=10, size=20, p=rep(0.25,4))
 ```
+* In these 20 trials (length of 20 nts), there is variability
+* **Use Chi-squared test for goodness of fit**
+  * each individual observed(x) - take squared difference from expected value & divide by expected value  
+![](http://www.geography-site.co.uk/pages/skills/fieldwork/statimage/chisqu.gif)
+```{r}
+# Make new Monte Carlo simulated matrix of observed AGCT values
+set.seed(1234)
+dna <- rmultinom(n=1000, prob=rep(0.25, times=4), size=20) #1000 stimulations(observation)s in length 20nts (trials)
+dna[1:4,1:20]
+```
 
+```{r}
+# Find expected values for each x using the probabilities & the formula E[X]=p*n -> n in terms of binomial formula B(n,p) = 20(size)
+expt <- (rep(0.25,times=4)*20)
+expt
+```
+
+```{r}
+# Chi-square starts here
+# Subtract expected vector from the observed vector in this case - subtract vector from each row element (4 x 4)
+dnasub <- dna-expt
+dnasub[1:4,1:20]
+```
+```{r}
+# (O-E) done, now square each value of the matrix
+dnasubsq <- dnasub^2
+dnasubsq[1:4,1:20]
+```
+```{r}
+# (O-E)^2 done, now divide each row by the expected
+dnasubsqE <- dnasubsq/expt
+dnasubsqE[1:4,1:20]
+```
+
+```{r}
+# A single chi-squared function preventing the need to do the previous steps
+ChiSqStat <- function(obsmatrix,expected){
+  return((obsmatrix-expected)^2/expected)
+}
+```
+
+```{r}
+# Test function
+set.seed(1234)
+dna1 <- rmultinom(1000, prob=rep(0.25, times=4), size=20)
+dna1_ObsmatrixH0 <- ChiSqStat(dna1, expt)
+dna1_ObsmatrixH0[1:4, 1:20]
+```
+
+* Now find the overall variablity for each position along the 20nt length
+```{r}
+dna1_colsum <- colSums(dna1_ObsmatrixH0) #sum ATCG chi-square values
+hist(dna1_colsum, breaks=25, col="green") #visualize
+# View 95th percentile for overall variability among positions
+p95th <- quantile(dna1_colsum, probs=0.95)
+p95th
+```
+
+* **The 95th percentile means that 5% of positions vary by value of 7.6**
+  * This number can be used to detect if individual positions come from different (non fair HAlternative) process
+```{r}
+# Simulate unfair observations (Halternative = probabilities for nt differ)
+set.seed(1234)
+dnaNF <- rmultinom(1000,prob=c(0.375,0.25,0.25,0.125), size=20)
+dnaNF[1:4,1:20]
+```
+
+```{r}
+# Generate expected values from formula E[x]=n*p
+exptNF <- c(0.375,0.25,0.25,0.125)*20
+exptNF
+```
+```{r}
+# Calculate Chi-squared statistic
+  # Note use probability from H0 for chi-square calculation
+dnaNF_ObsmatrixH0 <- round(ChiSqStat(dnaNF,expt), 1)
+dnaNF_ObsmatrixH0[1:4, 1:20]
+```
+```{r}
+# Find overall variability
+dnaNF_colsums <- colSums(dnaNF_ObsmatrixH0)
+dnaNF_colsums[1:20]
+```
+
+* When colsums of H0 (equal probabilities-fair) and HA (differing probabilities-unfair) is calculated, then can dertermine power of test
+  * That is, how likely is the test correctly rejects the null hypothesis (Ideally ~80%)
+  * Statistical Power = total number of samples varying by >= 95th percentile H0 (7.6)/total number of simulations performed
+    * total number of samples varying by >= 95th percential H0 (7.6) == if >=7.6 then reject H0
+    * number of simulations in this case is 1000
+```{r}
+power <- mean(dnaNF_colsums>p95th)
+power
+```
+* The resulting power is 4.7% when DNA length of 20(trials) is used for test, which is not great
+  * What is the minimum trials needed for a power of 80%?
+  
+```{r}
+# Simulate using different multinomial n values (size in R) then plot power(y) & trial(x)
+  # Make function to calculate power by combining all steps
+calcPower <- function(Obsdata,probs,crit_v){
+  dataMatrixH0 <- ChiSqStat(Obsdata, (1/nrow(Obsdata)) * colSums(Obsdata[])[1])  #??????
+  data_col_sum <- colSums(dataMatrixH0)
+  power <- mean(data_col_sum>crit_v)
+  return(power)
+}
+```
+
+```{r}
+# Generate 100 matricies of observed values (100 different length DNA(trials)) - each simulated 1000 times
+  # purrr::map(.x, .f, ...) function - in tidyverse package
+    # .x = vector w/ parameter which can vary per call
+    # .f = function to use on the vector
+    # ... any other parameters of Rfunction
+
+size <- c(1:100)
+dna1_to_100 <- map(size, rmultinom, n=1000, prob=c(0.375,0.25,0.25,0.125)) #n=1000 simulations
+```
+
+```{r}
+# First matrix where each trial has length 1
+dna1_to_100[[1]][,1:10]
+
+# Last matrix where each trial has length 100
+dna1_to_100[[100]][,1:10]
+```
+```{r}
+# Use map() again but using calcPower() function applied to each matrix - for H0 first (equal probabilities)
+  # NOTE CRITICAL VALUE FROM 95TH PERCENTILE IS CALCULATED FROM COLSUMS OF H0 PROBABILITIES
+Obsdata <- dna1_to_100
+power1_to_100 <- map(Obsdata, calcPower, probs=rep(0.25,times=4), crit_v=p95th)
+```
+
+```{r}
+# Plot relationship
+qplot(x=1:100, y=as.numeric(power1_to_100),geom="line")
+```
+
+```{r}
+# Now find what n/size is best for getting a power of 80%
+detect_index(as.numeric(power1_to_100), ~.x >= 0.8)
+```
+
+* So need a minimum length of ~84nts to have a power of 80% (note Monte Carlo simulation changes so only close approximation)
+
+```{r}
+#Check 
+
+set.seed(1234)
+nsize=84
+dna1.1 <- rmultinom(1000, prob=rep(0.25, times=4), size=nsize)
+dna1.1_ObsmatrixH0 <- ChiSqStat(dna1.1, (rep(0.25,times=4)*nsize))
+dna1.1_colsum <- colSums(dna1.1_ObsmatrixH0) #sum ATCG chi-square values
+p95th1.1 <- quantile(dna1.1_colsum, probs=0.95)
+p95th1.1
+
+set.seed(1234)
+dnaNF1.1 <- rmultinom(1000,prob=c(0.375,0.25,0.25,0.125), size=nsize)
+dnaNF1.1_ObsmatrixH0 <- ChiSqStat(dnaNF1.1, (rep(0.25,times=4)*nsize))
+dnaNF1.1_colsums <- colSums(dnaNF1.1_ObsmatrixH0)
+
+power1.1 <- mean(dnaNF1.1_colsums>p95th1.1)
+power1.1
+```
 
 </body>
   
