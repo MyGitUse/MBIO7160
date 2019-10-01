@@ -115,10 +115,10 @@ rootogram(gf1.1, xlab="Levels" ,rect_gp=gpar(fill="green"), main="Poisson good-f
 
 
 ```{r}
-# Q) Calibrate plot w/ known parameter of lambda=0.05 to generte 100 Poisson distributed numbers ```rpois``` and generate rootogram
+# Q) Calibrate plot w/ known parameter of lambda=0.05 to generate 100 Poisson distributed numbers ```rpois``` and generate rootogram
 
 x <- rpois(n=100, 0.05)
-x1 <-  goodfit(x, "binomial")
+x1 <-  goodfit(x, "poisson")
 rootogram(x1, xlab="Levels" ,rect_gp=gpar(fill="green"), main="Poisson good-fit question")
 ```
 
