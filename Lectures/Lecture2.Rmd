@@ -20,9 +20,10 @@ library(Biostrings)
 <br> &emsp; <a href="#7">[1.6]</a> More boxes:multinomial data
 <br> &emsp; <a href="#8">[1.7]</a> The χ<sup>2</sup> distribution
 <br> &emsp; <a href="#9">[1.8]</a> Chargaff’s Rule
-<br> &emsp; <a href="#10">[1.9]</a> Example: occurrence of a nucleotide pattern in a genome
+<br> &emsp; <a href="#10">[1.9]</a> Modeling sequential dependencies: Markov chains
 <br> &emsp; <a href="#11">[2.0]</a> Bayesian Thinking
-<br> &emsp; <a href="#12">[2.1]</a> Excercises</br> 
+<br> &emsp; <a href="#11">[2.1]</a> Example: occurrence of a nucleotide pattern in a genome
+<br> &emsp; <a href="#12">[2.2]</a> Excercises</br> 
 <a href="#x">[X]</a> Misc.
 
 * **
@@ -370,12 +371,14 @@ plot(x=thetas, y=loglikelihoodBinom(thetas), xlab=expression(theta), ylab=expres
 * Maxima here is k/n = 40/300 = 0.133
 
 * **
+
 <p id="7"><b><font size="5">More boxes:multinomial data</b></font><a href="#0"><sup>Return</sup></a></p>
 * DNA nucleotides - purines(A G) & pyrimidines (C T)
   * Binomial model works for purines/pyrimidines as sets but not all together (ACGT) -> needs multinomial model
 * Nucleotide bias
   * Estimation testing + Simulation
 ```{r}
+# Load set of seqs
 staph <- readDNAStringSet(here("BookStuff", "data", "staphsequence.ffn.txt"), "fasta")
 staph[1]
 letterFrequency(staph[[1]], letters="ACGT", OR=0)
@@ -386,42 +389,158 @@ letterFrequency(staph[[1]], letters="ACGT", OR=0)
 
 ```{r}
 # Similar procedure as 1.8
+# to be done
 ```
 
 * Selection acts on nucelotide frequencies
-  * Example question: Do the first 10 genes from the staph data come from the same multinomial?
+  * Example question: Do the first 10 genes (seqs) from the staph data come from the same multinomial?
     * AKA do nucleotides occur in the same proportions for the first 10 genes? -yes = no selection, -no = selection
 ```{r}
 letterfreq <- vapply(staph, letterFrequency, FUN.VALUE=numeric(4), letters="ACGT", OR=0) #to vector staph apply the function letterFrequency count for letters "A|C|G|T" & output counts as numeric with length 4 
 colnames(letterfreq) <- paste("gene", seq(along=staph)) #replace the column names of letterfreq vector w/ gene+number in staph vector
 tab10 <- letterfreq[,1:10] # subset to columns 1 to 10 (gene 1 to 10)
-computeproportions <- function(x){x/sum(x)} #make function that takes x and divides by sum of x (takes single value & divides by column or row totol depending on margin)
+computeproportions <- function(x){x/sum(x)} #make function that takes x and divides by sum of x (takes single value & divides by column or row totol depending on margin of next function)
 prob10 <- round(apply(tab10, 2, computeproportions), digits=2) # apply to each value in those 10 columns the computeproportions() function made
-prob10
+prob10 #This is the predicted probabilities for each nt in each gene
 ```
 
 ```{r}
+# Calculate mean of probabilities
 p0 = rowMeans(prob10)
 p0
 ```
 
-* p0 is vector of multinomial probabilities for all 10 genes
+* p0 is vector of multinomial probabilities for all 10 genes (seqs) - use a Monte Carlo simulation to test differences between observed letter freqs & expected value range under this simulation is plausible
+```{r}
+# Compute expected counts via - take outer product of vector of probabilities(p0)
+  # Sum nucleotide counts from each of the 10 columns (10 genes)
+Csum <- colSums(tab10) #tab10 is the variable where a matrix of counted nucleotides resides - so here we're just counting the total ATCG per gene seqeucne
+Csum
+
+
+#outer product means to mutiply (sum A+C+G+T per gene)*(predecited probabilities from rowMeans of all nucleotides)
+  # So predicted probability of Adenosine(A) is 0.346 from rowMeans() * Count of 1362 nts for gene 11 = 471 A's for gene1
+expectedtab10 <- outer(p0, Csum, FUN="*")  #outer product of arrays X & Y - FUN="*" is a special case as.vector(X) --???
+round(expectedtab10)
+```
+
+* Now know predicted probabilities & expected counts of nt per gene
+  * Can create random table w/ correct column sums via ```rmultinom``` function
+    * **Table assumes that null hypothesis is true (proportions given by p0 is correct)**
+```{r}
+# The function made in sapply() takes an input, s, and applys rmultinom (probability p0, number of obs=1, size=s)
+  # s in this case is Columnsum calculated from above
+  # Creates a new table using
+    # Csum = vector of summed ATCG per gene sequence
+    # p0 = probability predicted per nucleotide per gene
+    # So size of Csum is equal to gene1=1362, gene2=1134, gene3= 246, etc 
+       # simulate 1 observation per nt using probabilities from p0
+       # so function only works on one column of Csum ex) rmultinom(1, size=Csum[1], prob=p0) - where Csum[1] = 1362
+          # By using sapply, we can apply this for each column of Csum (10 genes)
+
+randomtab10 = sapply(Csum, function(s){rmultinom(1, size=s, prob=p0)}) #works on list or vector - function called on each item on list/vector
+all(colSums(randomtab10)==Csum)  # all() returns logical true or false - compares column sum of above sapply to original columnsum calculated above -> they should equal to the same column sums b/c of the `size` parameter from rmultinom()
+```
+
+```{r}
+# Chi-squared goodness of fit function from 1.4.1 - needed for the next step of Monte Carlo Simulation
+stat = function(obsvd, exptd = 20 * pvec) {
+  sum((obsvd - exptd)^2 / exptd)
+}
+```
+
+
+```{r}
+# Repeat this for 1000 simulations - for each table, find the test statistic using the chi-squared goodness of fit function 
+  # Store results in vector "simulstat"
+  # This will be the null distribution generated assuming the null hypothesis - p0 predicted probabilites is vector of multinomial proportions for each of the 10 genes
+
+
+# stimulationofstat replicate() is for Monte Carlo Simulation method
+  # replicate 1000 tomes (B)
+  # generate a table of simulated values randomtab10.1 using predicted counts of Csum & predicted probabilities
+  # chi-squared calculation of observed count values generated from randomtab10.1 (calculated using predicted probabilities), with expected values (expectedtab10) calculated from predicted probabilities(p0)
+
+#S1 is the chi-squared calulation using actual observed count values, and expected values (exptectedtab10) calculated from predicted probabilities(p0)
+
+B <-  1000
+simulate1000tablesANDApplychiStat <- replicate(B,{ randomtab10.1 <- sapply(Csum, function(s){rmultinom(n=1, size=s, prob=p0)}) #generate 1000 table simulations
+stat(randomtab10.1, expectedtab10)  #apply the stat chi-squared function to all 1000 tables using predicted expected values
+})
+
+
+S1 <- stat(tab10, expectedtab10) # Chi-squared using actual observed counts of ATCG
+
+sum(simulate1000tablesANDApplychiStat>=S1)  #if any chi-squared values generated from the 1000 Monte-Carlo generated tables is >= chi-squared value generated from actual observed counts -> sum all True's
+```
+
+```{r}
+#Visualize 
+
+hist(simulate1000tablesANDApplychiStat, col="red", breaks=seq(from=0, to=75, length.out=50))
+abline(v=S1, col="purple") #add a line for chi-squared calculation from actual ACTG counts
+abline(v=quantile(simulate1000tablesANDApplychiStat, probs=c(0.95, 0.99)), col=c("blue", "green"), lty=2) #add a line for 95th and 99th quantiles of the simulationofstat chi-squared using simulated observed count values
+```
+
+* from the histogram - probability of seeing value as large as S1=70.1 (blue line - chi-squared value from actual ATCG counts) is small under this null model
+  * Occured 0/1000 simulations (no bars at 70.1) -> **therefore, the 10 sequences do not come from the same multinomial model**
 
 
 * **
 <p id="8"><b><font size="5">The χ<sup>2</sup> distribution</b></font><a href="#0"><sup>Return</sup></a></p>
+* Can use stats theory for same conclusion w/o using Monte Carlo simulations
+  * Distribution of simulate1000tablesANDApplychiStat is approximately X<sup>2</sup> distribution (Chi-Squared)
+    * Approximation is good if counts in table are large
+    * **Parameter of 30 total for all genes evaluated (=10 genes * (4-1 nts d.f.))**
+  * Can compute probability of having value as large as S1=70.1
+  * **Monte Carlo problem - doesn't really work for small probabiltiies**
+    * Can't estimate probabilites smaller than the simulation (B=1000) so 1/1000 lowest probability estimated -> so estimated values will be larger ("Granularity of Monte Carlo simulations")
+    * Therefore, mathematical theories are better
+      * Example: Check how theory and simulation matches using the **goodness-of-fit tool (QQ) plot**
+        * Compare 2 distributions, with different samples or same samples in different theoretical models - looking at histograms is not informative
+        * **QQ plot finds quantiles of each distribution**
+* Quntiles & quantile-quantile plot
+  * ex) previous chapter - used order statistics to order 100 sample values 
+    * (Random sample size (n) -> order each random var from smallest exptected success to largest (x<sub>(1)</sub> < x<sub>(2)</sub>, x<sub>(n)</sub>))
+    * Find 22th percentile 
+      * Take any value between the 22nd & 23rd value (x<sub>22</sub><=c<sub>0.22</sub><x<sub>23</sub> = 0.22 quantile c)
+      * so c<sub>0.22</sub> defined by 
+      
+\begin{equation*}
+\frac{\# x_i's \leq c_{0.22}}{n} = 0.22.
+\end{equation*}
+    
+      * In chapter 3 -> emperical cumulative distribution function \hat{F}
+        * Which can define c<sub>0.22</sub> as \hat{F}_n(c_{0.22}) = 0.22
+  * In the simulate1000tablesANDApplychiStat variable, we calculated the c<sub>0.95</sub> & c<sub>0.99</sub> quantiles
+
+```{r}
+# Compare simulate1000tablesANDApplychiStat chi-squared values to 1000 generated simulations of chi-squared with parameter 30
+  # Display in histograms w/ 50bins each chi-squared value
+
+# Compute quantiles of simulate1000tablesANDApplychiStat chi-squared values & compare to chi-squared distribution w/ parameter 30
+
+qs <- ppoints(100)
+quantile(simulstat, qs)
+quantile(qchisq(p=qs, df=30), qs)
+```
+
 
 * **
 <p id="9"><b><font size="5">Chargaff’s Rule</b></font><a href="#0"><sup>Return</sup></a></p>
 
 * **
-<p id="10"><b><font size="5">Example: occurrence of a nucleotide pattern in a genome</b></font><a href="#0"><sup>Return</sup></a></p>
+<p id="10"><b><font size="5">MOdeling sequential dependencies: Markov Chains</b></font><a href="#0"><sup>Return</sup></a></p>
 
 * **
 <p id="11"><b><font size="5">Bayesian Thinking</b></font><a href="#0"><sup>Return</sup></a></p>
 
+
 * **
-<p id="12"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
+<p id="12"><b><font size="5">Example: occurrence of a nucleotide pattern in a genome</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+<p id="13"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
 
 
 * **

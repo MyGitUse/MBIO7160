@@ -459,7 +459,7 @@ mean(PoisMax >=7) #converts TRUE/FALSE into 1/0 -> result of calculation is frac
 ```
 
 **This output is approximately close to the theoretical calculation of 10<sup>-4</sup> as above**  
-<mark style='background-color:yellow'>&emsp;  ◆ Though the limitation is clear because Monte Carlo stimulations are never precise - only estimated close to precise</mark>
+<mark style='background-color:yellow'>&emsp;  ◆ Though the limitation is clear because Monte Carlo stimulations are never precise - only estimated close to precise (limited by 1/#simulations = lowest probability encountered)</mark>
 
 > Everything we have done up to now is only possible because we know the false positive rate per position (p=0.01), we know the number of patients assayed (size=50) and the length of the protein (n=100), we suppose we have identically distributed independent draws from the model, and there are no unknown parameters. **This is an example of probability or generative modeling: all the parameters are known and the mathematical theory allows us to work by deduction in a top-down fashion.**
 
