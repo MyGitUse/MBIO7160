@@ -22,8 +22,8 @@ library(Biostrings)
 <br> &emsp; <a href="#9">[1.8]</a> Chargaff’s Rule
 <br> &emsp; <a href="#10">[1.9]</a> Modeling sequential dependencies: Markov chains
 <br> &emsp; <a href="#11">[2.0]</a> Bayesian Thinking
-<br> &emsp; <a href="#11">[2.1]</a> Example: occurrence of a nucleotide pattern in a genome
-<br> &emsp; <a href="#12">[2.2]</a> Excercises</br> 
+<br> &emsp; <a href="#12">[2.1]</a> Example: occurrence of a nucleotide pattern in a genome
+<br> &emsp; <a href="#13">[2.2]</a> Excercises</br> 
 <a href="#x">[X]</a> Misc.
 
 * **
@@ -523,9 +523,9 @@ abline(v=quantile(simulate1000tablesANDApplychiStat, probs=c(0.95, 0.99)), col=c
 
 # Compute quantiles of simulate1000tablesANDApplychiStat chi-squared values & compare to chi-squared distribution w/ parameter 30
 
-qs <- ppoints(100)
-quantile(simulstat, qs)
-quantile(qchisq(p=qs, df=30), qs)
+#qs <- ppoints(100)
+#quantile(simulstat, qs)
+#quantile(qchisq(p=qs, df=30), qs)
 ```
 
 
@@ -575,7 +575,7 @@ abline(v=chfstat, lwd=2, col="blue") # Chargaff stat calculated using non-simula
   * Probability of observing a value as small as pChf = 1.6x10^-4
     * significant to reject the null, so Ha means that nt's are not exchangeable & have a relationship (dependent)
 
-* Q. only looked at one-side (values smaller than observed) b/c.........
+* <mark style='background-color:red'>Q) only looked at one-side (values smaller than observed) b/c.........</mark>
 
 * Two categorical variables 
   * From ch1 until now, the data has been binomial (yes/no binary), or multinomuial (ATCG, genotypes)
@@ -745,14 +745,243 @@ seqLogo(pwn, ic.scale=FALSE)
 * **
 <p id="10"><b><font size="5">Modeling sequential dependencies: Markov Chains</b></font><a href="#0"><sup>Return</sup></a></p>
 * Special case of dependencies between categorical variables - along a seq/chain of categorical variables
-* Predict weather
-
+* Predict tomorrow's/yesterday's weather using probabilities for changes. 
+  * Markov assumption: Predicting tomorrow's/yesterday's weather <u>depends on state of current day</u>
+    * Assumption doesn't need to be true but it should be close
+    * Can extend assumption to depend on previous days (k), where k is a limited number
+      * Assumption based on limited memory so can predictions rely on limited previous days
+* ex) Biological seqs - specific succession of nt pair patterns = digrams (frequency CG =/= CA =/= CC =/= CT)
+  * Some parts of genome are more frequent in CA  (not independent)
+    * P(CA) =/= P(C)P(A)
+  * Dependency modelled as Markov chain
+    * P(CA) = P(nCA) = P(nnCA) = P(...CA) = P(C)P(A|C)
+      * n = any nucleotide
+      * P(A|C) = probability of A given that the base before is C
+  
 * **
 <p id="11"><b><font size="5">Bayesian Thinking</b></font><a href="#0"><sup>Return</sup></a></p>
 
+* Bayesian Thinking 
+  * Classical approach parameters for distrabutions - probabilities of different outcomes represent long-term frequencies
+    * Parameters are definite & fixed numbers
+    * If not known, estimate from data
+    * Problem: **Doesn't account for information already known (priors)**
+      * Constains parameters, or makes certains parameters more likely
+  * Bayesian approach - uses probability distributions to show knowledge about parameters, where data updates knowledge (shift distribution/make more narrow)
+    * **Prior (before)** & **Posterior (after)** data distirubtions used as models 
+      * Useful to combine data from different sources
+    * ex) Hypothesis(H) - use data to test if hypothesis is true
+      * prior knowledge of data (before seeing data)= prior probability P(H)
+      * after knowledge of data (after seeing data)= posterior probability P(H|D) - probability of H given that D was seen
+        * posterior probability can be higher/lower than prior P(H) - depends on data D
+* Haplotypes
+  * foresnics - signatures from Y-chromosomes = haplotypes -> collection of alleles (DNA-seq variants) adjactent on a chromosome
+    * Usually inherited together (low recombination separation) -> genetically linked
+  * Ex) Looked for linked variants on Y-chromosome
+    * Short tandem repeats = signature for haplotypes - usually SNP located upstream
+
+```{r}
+# Estimate porportion of Y-haplotype w/ set of short tandem repeat signatures
+  # repeats labelled by number of repeats & postion
+
+haplo6 <- read.table(here("BookStuff", "data", "haplotype6.txt"), header=TRUE)
+haplo6
+```
+
+* Interpretation of table
+  * haplotype H1 has 14 repeats @position DYS19, 12 repeats @position DXYS156Y, etc 
+  * Find proportion (<span class="math inline">\(\theta\)</span>) of haplotype of interest in population
+    * Assume occrence of haplotype = "success" in binomial distribution
+    
+* Simulate haplotype of Bayesian approach for binomial distribution model
+  * Instead of guessing single parameter value <span class="math inline">\(\theta\)</span> - Bayesian approach shows parameter as a draw from a statistical distribution.
+    * Chosen distribution shows believed values of the parameters
+    * Can use any distribution - but the values should be representitive for parameter
+      * Parameter should express proportion or probability, taking a value between 0-1
+        * **Beta-distribution** - density formula to guess parameter theta
+
+\begin{equation*}
+f_{\alpha,\beta}(x) = \frac{x^{\alpha-1} (1-x)^{\beta-1}}{\text{B}(\alpha, \beta)} \quad\text{where}\quad
+\text{B}(\alpha ,\beta)=\frac{\Gamma(\alpha)\Gamma(\beta)}{\Gamma(\alpha+\beta)}
+\end{equation*}
+
+         * Beta-distributition function needs 2 parameters (a & B)  
+           * Can fit many different data  
+           * Math property - start w/ prior belief that parameter <span class="math inline">\(\theta\)</span> is beta-shaped  
+             * Then observe dataset of n binomial trials B(n,p) -> size for rbinom()  
+               * Use this to update belief = posterior on <span class="math inline">\(\theta\)</span> also beta-shaped but w/ updated parameters  
+           * Ex) B(10,30), B(20,60), B(50,150) -> alpha = 10,20,60 & beta=30,60,150 (priors)
+
+* Distrubtion of Y
+  * For any single choice of <span class="math inline">\(\theta\)</span>, distribution Y follows the likelihood for binomial distribution formula
+  
+  \begin{equation}
+f(\theta\,|\,n,y) = f(y\,|\,n,\theta)={n \choose y} \, \theta^y \, (1-\theta)^{(n-y)}.
+\tag{2.5}
+\end{equation}
+
+```{r}
+# What if theta varies among distribution Y = Marginal distribution
+  # simulate 100,000 theta values via vapply to all elements of beta-distribution simulation of rtheta
+rtheta <- rbeta(n=100000, shape1=50, shape2=350) #simulate probabilities for theta
+
+y <- vapply(rtheta, function(th){ rbinom(1,prob=th,size=300)}, numeric(1)) #use the theta probabilities in binomial distirbution for observed values
+hist(y, breaks=50, col="orange", main="Marginal distribution of Y", xlab="") #histogram for viewing observed values
+```
+
+```{r}
+# Verify alternative function
+
+y1 <- rbinom(length(rtheta), prob=rtheta, size = 300)  #alternative way without using vapply for each individual probability (length=100000)
+hist(y1, breaks=50, col="orange", main="Marginal distribution of Y", xlab="")
+```
+
+* Histogram of all theta probabilities, such that Y=40 (posterior distribution)
+  * Calculate posterior values of parameter <span class="math inline">\(\theta\)</span>
+    * Condition the outcomes such that Y=40
+      * Compare values to theoretical posterior (```densPostTheory```)
+```{r}
+# When posterior value = 40
+thetaPostEmp <- rtheta[y==40] #y==40 is theta probabilities when prior y=40
+hist(thetaPostEmp, breaks=40, col="red", main="Posteriror distribution when Y=40", probability=TRUE,
+  xlab=expression("posterior"~theta))
+
+# Compare to theoretical theta posterior densPostTheory
+  # note dbeta not rbeta simulation
+  #thetas = vector of values from 0 to 1 created above
+densPostTheory <- dbeta(x=thetas, shape1=90, shape2=610) #what does shape mean and where do these numbers come from?
+lines(thetas, densPostTheory, type="l", lwd = 3) #lines() is basically a connected scatter plot - needs a histogram to work on
+```
+
+```{r}
+# Check mean of 100,000 simulation distribution of posterior theta to theoretical theta
+mean(thetaPostEmp)
+```
+```{r}
+# Check mean if theoretical posterior theta generated via dbeta
+dtheta <- thetas[2]-thetas[1]   
+sum(thetas*densPostTheory*dtheta) # How does this eqn work???? - Oh, they calculated the integral
+```
+* Calculating the mean for the theoretical posterior theta (densPostTheory) uses the integral calculation (numerical integration)
+  * sum over integrant
+  * **This calculation is not always feasible** - ex) <u>if parameters have many dimensions (>1 scalar theta parameter)</u>
+    * Solution: Use Monte Carlo integration
+
+```{r}
+# Monte Carlo integration instead of calculating mean of posterior
+thetaPostMC <- rbeta(n=1000000, shape1=90, shape2=610) #simulate theta probabilities 
+mean(thetaPostEmp)
+```
+
+```{r}
+# Check Monte Carlo simulation (thetaPostMC) vs (thetaPostEmp) via QQplot
+  # alternatively can compare either thetaPostMC or thetaPostEmp simulations to pbeta(q=,shape1=90,shape2=610)
+  # If QQ plot curve overlaps the line y=x (abline) -> good agreement
+    # Tails will have random differences 
+
+qqplot(x=thetaPostMC, y=thetaPostEmp, type="l", asp=1)
+abline(a=0, b=1, col="blue") #a=intercept, b=slope
+```
+
+* Q) Difference between ```thetaPostEmp``` vs ```thetaPostMC``` simulation? -> shape1/2 parameters whatever those mean (oh, alpha and beta parameters of beta distribution)
+
+* Posterior distribution is also a beta distribution
+  * parameters a=90, b=610
+    * Obtained via summing the prior parameters (a=50, b=350) w/ observed successes y=40 + observed failures (n-y=260)
+       * n=220
+       * Output is the posterior value
+       
+\begin{equation*}
+\text{beta}(90,\, 610)=\text{beta}(\alpha+y,\beta+(n-y)).
+\end{equation*}
+
+         * Gives best estimate for theta based upon uncertainty of posterior distirbution 
+         
+* Maximixe posterior distribution estimate via MAP (maximize approximate posterior?)
+
+\begin{equation*}
+\frac{\alpha-1}{\alpha+\beta-2}=\frac{89}{698}\doteq 0.1275
+\end{equation*}
+
+* New scenario
+  * First series of data
+    * prior beta(90,610)
+      * a=90
+      * b=610
+  * New second series of data
+    * n=150 obs and y=25 successes, so 150-25= 125 failures
+    * guess theta
+
+\begin{equation*}
+\text{beta}(\alpha+y,\beta+(n-y)).
+\end{equation*}
+
+\begin{equation*}
+\text{beta}((90+25)=115,\, (610+125)=735)
+\end{equation*}
+
+* Mean of distribution is 
+
+\begin{equation*}
+\frac{\alpha+y}{(\alpha+y)+(\beta+(n-y))}
+\end{equation*}
+
+\begin{equation*}
+\frac{115}{115+735}=\frac{115}{850}\simeq 0.135
+\end{equation*}
+
+* The theoretical maximum a posteriori (MAP) estimate of beta(115,735) is 
+
+\begin{equation*}
+\frac{\alpha-1}{\alpha+\beta-2}=\frac{114}{848}\simeq 0.134
+\end{equation*}
+
+```{r}
+# check
+
+denspost2 <- dbeta(thetas, 115, 735) #distribution
+mcpost2 <- rbeta(1e6, 115,735) #monte carlo simulation
+
+sum(thetas*denspost2*dtheta) # mean calculation via numeric integration
+```
+```{r}
+# mean by Monte Caralo simulation
+
+mean(mcpost2)
+```
+
+```{r}
+#MAP estimate
+  # uses Monte Carlo method to find MAP from sample of rbeta(.,115,735)
+
+thetas[which.max(denspost2)]
+```
+
+* Q) If re-did computations using a lower peak prior (less prior information), how does this affect the results?
+  * A) Prior's will rarely change posterior distribution unless highly peaked
+    * ex) highly sure of expected outcome at the beginning
+    * or prior's will change posterior if low dataset -> best to have high data for prior so it doesn't impact final results as much
+    
+* Confidence Statements for proportion parameter
+  * Conclude where proportion lies in given data
+    * Summary1: posterior credibility interval (Bayesian analog of confidence interval)
+      * take 2.5 & 97.5th percentiles of posterior distribution P(L<=theta<=U) = 0.95
+
+```{r}
+quantile(mcpost2, c(0.025,0.975)) #from monte carlo simulation
+```
 
 * **
 <p id="12"><b><font size="5">Example: occurrence of a nucleotide pattern in a genome</b></font><a href="#0"><sup>Return</sup></a></p>
+* Examples so far have focused on distributions w/ discrete counts + categorical data
+* Now, distribution of quasi-continous distances (distributions of distances between specific motifs in genome)
+
+```{r}
+# Biostrings package = tools for working w/ sequence data
+  # classes -> DNAString & DNAStringSet
+library(Biostrings)
+```
+
 
 * **
 <p id="13"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
