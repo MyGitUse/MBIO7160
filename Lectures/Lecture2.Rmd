@@ -514,7 +514,10 @@ abline(v=quantile(simulate1000tablesANDApplychiStat, probs=c(0.95, 0.99)), col=c
         * Which can define c<sub>0.22</sub> as \hat{F}_n(c_{0.22}) = 0.22
   * In the simulate1000tablesANDApplychiStat variable, we calculated the c<sub>0.95</sub> & c<sub>0.99</sub> quantiles
 
+# <mark style='background-color:red'>Skipped for now</mark>
+
 ```{r}
+
 # Compare simulate1000tablesANDApplychiStat chi-squared values to 1000 generated simulations of chi-squared with parameter 30
   # Display in histograms w/ 50bins each chi-squared value
 
@@ -529,8 +532,220 @@ quantile(qchisq(p=qs, df=30), qs)
 * **
 <p id="9"><b><font size="5">Chargaff’s Rule</b></font><a href="#0"><sup>Return</sup></a></p>
 
+* Tetranucleotide hypothesis
+  * Used MW of molecules to see if nucleotides occured at equal freqs (P(A)=P(G)=P(C)=P(T))
+```{r}
+#Reported in percentages
+load(here("BookStuff", "data", "ChargaffTable.RData"))
+ChargaffTable
+```
+
+* <mark style='background-color:red</mark>Q) Skipped</mark>
+
+* Pattern visualized by Chargaff is base pairing for matching frequencies of AT & CG = Chargaff's Rule
+  * Statistic = ((P(C)-P(G))<sup>2</sup>+(P(A)-P(T))<sup>2</2> -> summed over all rows of a table
+* What if there as no relationships between the base pairs? - assume nt's are exchangeable w/ no order (independent) --> H0
+```{r}
+# Make Chargaff stat function, where x is the table of counts
+statChargaff <- function(x){sum(
+  (x[,"C"]-x[,"G"])^2 + (x[,"A"]-x[,"T"])^2
+)}
+
+chfstat <- statChargaff(ChargaffTable) #apply chargaff stat to original table
+
+#Monte carlo simulation x100,000 times
+permstat <- replicate(100000, {
+  permuted <- t(apply(ChargaffTable,1,sample)) #take random sample from the rows of Chargaff table(Default replace=FALSE) - t(transpose row/col)
+  colnames(permuted) <- colnames(ChargaffTable) #set the column names of permuted to equal ChargaffTable
+  statChargaff(permuted) #calculate base pairing
+})
+```
+
+
+```{r}
+pChf <- mean(permstat <= chfstat)  #compare simulation to original
+pChf
+```
+```{r}
+hist(permstat, breaks=100,main="100,000 simulation of Chargaff", col="red")
+abline(v=chfstat, lwd=2, col="blue") # Chargaff stat calculated using non-simulated table
+```
+
+* Histogram indiactes it's rare to have a value as small as the blue line (chfstat = 11.08)
+  * Probability of observing a value as small as pChf = 1.6x10^-4
+    * significant to reject the null, so Ha means that nt's are not exchangeable & have a relationship (dependent)
+
+* Q. only looked at one-side (values smaller than observed) b/c.........
+
+* Two categorical variables 
+  * From ch1 until now, the data has been binomial (yes/no binary), or multinomuial (ATCG, genotypes)
+  * What if we want to measure >=2 categorical variables on a set of subjects?
+    * ex) Eye color + hair color
+      * Cross tabulate counts for each eye color/hair color combinations = **Contingency table (table of counts)**
+```{r}
+HairEyeColor[,,2] #[eye color total, hair color total, 1=male 2=female]
+str(HairEyeColor) # numeric array w/ 3 dimensions
+```
+
+* Color blindness & sex
+```{r}
+# Red-green colourblindless - Deuteranopia data
+load(here("BookStuff", "data", "Deuteranopia.RData"))
+Deuteranopia
+```
+
+* Test if sex is related w/ colourblindness
+  * H0 - no relationship between sex & colourblindness (2 independent binomials - sex & colourblindness)
+    * estimate multinomial probabilities & compare observed vs expected counts via ```chisq.test()``` function
+```{r}
+chisq.test(Deuteranopia)
+```
+
+* Small p-value indicates - low proability of seeing observed counts under H0 model
+  * -> Again, H0 = model assumes fraction of colourblindness among male/female is the same (no relationship)
+  * Can also test w/ **Fisher's exact test (hypergeometric test)** - seen in CH10
+    * Used to test for overrepresentation of certain types of genes
+    
+* Hardy-Weinberg equilibrium (Special multinomial)
+  *<mark style='background-color:yellow'>A multinomial with 3 possible levels via combinding two alleles (M & N)</mark>
+    * p = overall frequency of allele M in population
+    * q = N allele = 1-p
+  * Hardy-Weinberg model -> looks for **genotype independent frequency of alleles** relation between p & q
+    * ex) Random mating in large population w/ 3 possible genotypes
+    <center> p<sub>MM</sub> = p<sup>2</sup>, p<sub>NN</sub> = q<sup>2</sup>, p<sub>NM</sub> = 2pq</center>
+    * Observed frequencies (n<sub>MM</sub>,n<sub>MN</sub>,n<sub>NN</sub>) = genotypes MM, MN, NN
+      * Total number S = n<sub>MM</sub>+n<sub>MN</sub>+n<sub>NN</sub>
+      * Multinomial Likelihood  formula (Probability of seeing observed data when probabilities of the frequencies given)
+      
+      \begin{equation*}
+P(n_{\text{MM}},\,n_{\text{MN}},\,n_{\text{NN}}\;|\;p) =
+{S \choose n_{\text{MM}},n_{\text{MN}},n_{\text{NN}}}
+(p^2)^{n_{\text{MM}}} \,\times\,
+(2pq)^{n_{\text{MN}}} \,\times\,
+(q^2)^{n_{\text{NN}}},
+\label{eq:likHWE}
+\end{equation*}
+
+      * Log-likelihood form of Hardy-Weinberg formula
+      
+\begin{equation*}
+L(p)=n_{\text{MM}}\log(p^2)+n_{\text{MN}} \log(2pq)+n_{\text{NN}}\log(q^2).
+\label{eq:loglikHWE}
+\end{equation*}
+
+      * p value to maximize log-likelihood
+      
+\begin{equation*}
+p = \frac{n_{\text{MM}} + n_{\text{MN}}/2}{S}.
+\end{equation*}
+
+* If given data of observed frequencies (n<sub>MM</sub>,n<sub>MN</sub>,n<sub>NN</sub>), the log-likelihood(L) is a function with a parameter p (q doesn't matter b/c 1-p)
+
+```{r}
+# Test HW log-likelihood function for different p-values in a dataset of blood group alleles
+
+library("HardyWeinberg")
+data("Mourant")
+nMM <- Mourant$MM[216] #subset only row 216 counts
+nMN <- Mourant$MN[216]
+nNN <- Mourant$NN[216]
+
+Mourant[214:216,] #short view of dataset from rows 214 to 216
+```
+
+```{r}
+# Make the HW-log function
+
+loglikHW <- function(p,q=1-p){
+  2*nMM*log(p) + nMN*log(2*p*q) + 2*nNN*log(q)
+}
+```
+
+```{r}
+xv <- seq(from=0.01,to=0.99, by=0.01) #vector of probabilities
+p <- loglikHW(xv) #insert vector of probabilities into the function
+plot(x=xv, y=p, type="l", lwd=2, xlab="probabilities", ylab="log-likelihood of probabilities")
+imax=which.max(p) #position of highest (+)log-likelihood value
+abline(v=xv[imax], h=p[imax], lwd=1.5, col="blue") #xv[imax] = in probability vector which is position imax(58)
+abline(h=p[imax], lwd=1.5, col="purple")
+```
+
+* Maximum likelihood estimate for probabilities in multinomial can be observed via observed freqs in binomial model, but estimates in binomial need to account for relationships between all 3 probabilities 
+  * <span class="math inline">\(\hat{p}_{MM}, \hat{p}_{MN}, \hat{p}_{NN}\)</span> 
+
+```{r}
+# af() function in HardyWeinberg package to calculate probabilities when counts are known
+phat <- af(c(nMM,nMN, nNN))
+phat
+```
+
+```{r}
+pMM <- phat^2
+qhat <- 1-phat
+pHW <- c(MM=phat^2, MN=2*phat*qhat, NN=qhat^2)
+sum(c(nMM,nMN,nNN)) * pHW  #observed values
+```
+
+```{r}
+#compare to original expected values
+Mourant[216,]
+```
+
+* Can further test if observed values can be used to reject H0 (Hardy-Weinberg model) via simulation or chi-squared test as previous.
+  * There is a visual evaluation of goodness of fit for Hardy-Weinberg (ternary plot)
+    * Sample points @coordinates given by proportions of each different allele
+  * ```HWTenaryPlot()``` function
+```{r}
+pops <- c(1,69,128,148.192) #specific column numbers (countries) used to subset in HWTernaryPlot() function
+genotypeFrequencies <- as.matrix(Mourant[,c("MM","MN","NN")])
+HWTernaryPlot(genotypeFrequencies[pops,],
+              markerlab=Mourant$Country[pops],
+              alpha=0.0001, curvecols=c("red", rep("purple",4)),
+              mcex=0.75, vertex.cex=1)
+```
+
+* The red line is the HW-model, between the 2 purple lines is the region where HW-model (H0) can't be rejected
+  * Countries farther away from red line = farther from HW equilibrium
+
+```{r}
+# Make ternary plot & add other data points
+HWTernaryPlot(genotypeFrequencies[155,], alpha=0.0001, newframe=TRUE, cex=0.5)
+HWChisq(genotypeFrequencies[155,])
+```
+
+```{r}
+# Divide all total frequencies by 50 - keep same porportion for each genotypes & re-make ternary plot
+newgfHW <- round(genotypeFrequencies/50)
+HWTernaryPlot(newgfHW[pops,],
+              markerlab=Mourant$Country[pops],
+              alpha=0.0001, curvecols=c("red", rep("purple",4)),
+              mcex=0.75, vertex.cex=1)
+```
+
+* Points stay the same but confidence regions have a wider spread b/c count frequencies decreased (but proportions remained)?
+
+* Concatenating several multinomials - sequence motif & logos
+  * Kozak motif = seq occuring close to start codon(ATG) of coding ORF
+    * nt position#1 to 5 left to ATG -> differs in nucleotide (not equally likely)
+  * **Position weight matrix/Position-specific scoring matrix** = multinomial probabilities at every position of a seq
+    * Visualized via sequence logo
+```{r}
+#BiocManager::install("seqLogo")
+library(seqLogo)
+load(here("BookStuff", "data", "kozak.RData"))
+pwn <- makePWM(kozak)
+seqLogo(pwn, ic.scale=FALSE)
+```
+
+* Multinomial decisions("boxes") rarely have equal probabilities/frequencies
+  * Parameters p1, p2,.., pn differ depending on data (ex) 20 AA's, blood types, hair colour)
+  * If multiple categorical variables, they are rarely indepdendent (ex) sex & cb, hair & eye colour)
+    * More in CH9 - multivariate decomposition of contingency tables
+
 * **
-<p id="10"><b><font size="5">MOdeling sequential dependencies: Markov Chains</b></font><a href="#0"><sup>Return</sup></a></p>
+<p id="10"><b><font size="5">Modeling sequential dependencies: Markov Chains</b></font><a href="#0"><sup>Return</sup></a></p>
+* Special case of dependencies between categorical variables - along a seq/chain of categorical variables
+* Predict weather
 
 * **
 <p id="11"><b><font size="5">Bayesian Thinking</b></font><a href="#0"><sup>Return</sup></a></p>
