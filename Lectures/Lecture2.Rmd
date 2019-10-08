@@ -2,9 +2,7 @@
 title: "Chapter 2: Statistical Modeling"
 output: html_notebook
 ---
-install.packages("Renext")
-BiocManager::install("BSgenome")
-BiocManager::install("BSgenome.Ecoli.NCBI.20080805")
+
 library(here)
 library(vcd)
 library(Biostrings)
@@ -542,7 +540,7 @@ load(here("BookStuff", "data", "ChargaffTable.RData"))
 ChargaffTable
 ```
 
-* <mark style='background-color:red</mark>Q) Skipped</mark>
+* <mark style='background-color:red'>Q) Skipped</mark>
 
 * Pattern visualized by Chargaff is base pairing for matching frequencies of AT & CG = Chargaff's Rule
   * Statistic = ((P(C)-P(G))<sup>2</sup>+(P(A)-P(T))<sup>2</2> -> summed over all rows of a table
@@ -1077,6 +1075,137 @@ expplot(width(betweenmotifs), rate=1/mean(width(betweenmotifs)),labels="fitted e
   * Gap lengths in further positions less closely distributed??
   
 * Modeling in the case of dependencies
+  * nt seqs are often dependent - prob of seeing certain nt at position depends on surrounding seq
+  * Dependency modelling using **Markov Chain**
+    * ex) Try to find difference between CpG island & non-CpG island from chromosome
+```{r}
+# BiocManager::install("BSgenome.Hsapiens.UCSC.hg19")
+  # has the start/end points of CpG islands - want to look at nucleotide freqs (CG, CT, CA, CC) to see dependencies
+
+library("BSgenome.Hsapiens.UCSC.hg19")
+chr8 <- Hsapiens$chr8
+CpGtab <- read.table(here("BookStuff", "data", "model-based-cpg-islands-hg19.txt"), header=TRUE)
+nrow(CpGtab)
+
+head(CpGtab[CpGtab$chr=="chr8",])
+```
+    
+```{r}
+# subset data (CpGtab) using filter() for only chromosome 8. Create IRanges object w/ start/end positions defined by column names of CpGtab data
+  # Specifically call 'filter' from dplyr via "::" b/c many other packages have a filter function
+  # IRanges is a container for mathemateical cintervals (groups interval - "I" = interval, "G" = Genomic Ranges)
+    # start/end = column from dataframe subsetted by filter
+
+
+irCpG <- with(dplyr::filter(CpGtab, chr=="chr8"), IRanges(start=start, end=end))
+irCpG
+```
+```{r}
+grCpG <- GRanges(ranges=irCpG, seqnames="chr8", strand="+")
+grCpG
+
+genome(grCpG) <- "hg19" # changes the bottom line "unspecified genome" to "hg19"
+```
+
+```{r}
+# Visualization of CpG locations in selected region of human chromosome 8
+
+# BiocManager::install("Gviz")
+library(Gviz)
+ideo <- IdeogramTrack(genome="hg19", chromosome="chr8")
+plotTracks(list(GenomeAxisTrack(), AnnotationTrack(grCpG, name="CpG"), ideo), from = 2200000, to = 5800000, shape= "box",
+          fill = "#006400", stacking = "dense")
+```
+
+* CpG island locations on chr8 -> `irCpG`
+* Regions between CpG island -> `gaps(irCpG)`
+* `CGIview` & `NonCGIview` are coordinates + seq combined
+
+```{r}
+CGIview <- Views(unmasked(Hsapiens$chr8), irCpG)
+NonCGIview <- Views(unmasked(Hsapiens$chr8), gaps(irCpG))
+
+CGIview
+NonCGIview
+```
+
+```{r}
+# Compute transition counts in CpG island & non-island
+
+seqCGI      = as(CGIview, "DNAStringSet")
+seqNonCGI   = as(NonCGIview, "DNAStringSet")
+
+dinucCpG    = sapply(seqCGI, dinucleotideFrequency)
+dinucNonCpG = sapply(seqNonCGI, dinucleotideFrequency)
+
+dinucNonCpG[, 1]
+```
+
+```{r}
+#sum up each of the dinucleotide counts
+
+NonIslandCounts = rowSums(dinucNonCpG)
+IslandCounts  = rowSums(dinucCpG)
+```
+
+```{r}
+# 4 State Markov Chain
+  # Transition matrix -> matrix where rows=from state, and columns=to state
+
+TIsl <- matrix(IslandCounts, ncol=4, byrow=TRUE)
+TnonIsl <- matrix(NonIslandCounts, ncol=4, byrow=TRUE) 
+dimnames(TIsl) = dimnames(TnonIsl) =
+  list(c("A", "C", "G", "T"), c("A", "C", "G", "T"))
+
+TIsl
+TnonIsl
+```
+
+```{r}
+# Use counts of #of transitions for each type -> compute frequencies and put into 2matracies
+
+MIsl <- TIsl/rowSums(TIsl)
+MIsl
+```
+
+```{r}
+
+MNonIsl <- TnonIsl/rowSums(TnonIsl)
+MNonIsl
+```
+
+* Q) Transitions different per row?
+  * ex) P(A|C) =/= P(A|T)
+  * A) Yes, see MIsl -> P(A|C) "C to A"=0.201 vs P(A|T)=0.098
+  
+* Q) Frequencies of nts different in CpG island vs nonIsland?
+
+```{r}
+freqIsl = alphabetFrequency(seqCGI, baseOnly = TRUE, collapse = TRUE)[1:4]
+freqIsl / sum(freqIsl)
+```
+
+```{r}
+freqNon = alphabetFrequency(seqNonCGI, baseOnly = TRUE, collapse = TRUE)[1:4]
+freqNon / sum(freqNon)
+```
+* Inverse pattern in CpG island seen (C/G freq ~0.32 in island vs ~0.19 in nonIsland)
+
+* Q) Use differences to decide if given seq comes from CpG island?
+  * Use Chi-squared statistic to compare freqs observed `freqIsl` vs `freqNonIsl`
+    * Chi-squared may not be sensitive for shorter seqs (use below formula)
+
+* ex) Given a seq which we don't know if it's a CpG island, what is the probability of the seq being a CpG island?
+  * Compute score based on **odds ratio**
+    * SeqX = ACGTTATACTACG
+      * If modelled as first order Markov chain - assuming seq comes from CpG island
+        * first order -> 1st nt = A, slide over = AC, slide over = CG, GT, TT, TA, AT, etc (slide one nt frame until end)
+
+\begin{align}
+P_{\text{i}}(x = \mathtt{ACGTTATACTACG}) = \;
+&P_{\text{i}}(\mathtt{A})\, P_{\text{i}}(\mathtt{AC})\, P_{\text{i}}(\mathtt{CG})\, P_{\text{i}}(\mathtt{GT})\, P_{\text{i}}(\mathtt{TT}) \times \nonumber\\
+&P_{\text{i}}(\mathtt{TA})\, P_{\text{i}}(\mathtt{AT})\, P_{\text{i}}(\mathtt{TA})\, P_{\text{i}}(\mathtt{AC})\, P_{\text{i}}(\mathtt{CG}). \tag{2.7} 
+\end{align}   
 
 
 * **
@@ -1094,6 +1223,132 @@ expplot(width(betweenmotifs), rate=1/mean(width(betweenmotifs)),labels="fitted e
 * μ = mean of normal distribution
 * θ = multiple parameters for probability model
   * ex) binomial model θ=(n,p) -> 2 numbers n=positive integer & p=real number between 0 & 1
+  
+* **Observed variables**
+  * measured numbers (including gender)-> datafiles
+  * discrete or continous
+  * Subclassification
+    * exogenous variable = ~independent variable -> not controlled by other variables
+    * endogenous variable = ~dependent variable -> controlled by other variables
+    * Dichotomous -> binary output of 1 or 0
+  * Latent vs observed variable
+    * Latent = hidden non-observed
+    
+* **Expected Value**
+  * "<u>the output</u> from some action"
+    * Expected value of random variable = mean of the random variable
+  * Basic formula
+    * **(Probability P(x))(#times of event) = expected value **
+    * formula changes depending on event
+    * Formula for Binomial random variable = basic formula
+    * Formula for Multiple events 
+      * E(X) = ∑ P(X)(n)
+  * Formula for continous random variables   
+  ![](https://www.statisticshowto.datasciencecentral.com/wp-content/uploads/2013/09/expected-value-formula.png)
+
+* **Probability Distribution**
+  * Tells probability of event happening 
+    * simple events (coin toss) & complex events (drug success)
+  * Types
+    * Basic probability distributions -> probability distribution table
+    * Binomial distribution -> pass/fail
+    * Normal distribution -> Bell curve
+  * Display via table/graph/formula
+  * List
+    * Discrete probability distribution
+      * probability distributions (binomial, normal, Poisson) -> classified as continous or discrete
+        * Discrete distribtuion = discrete random variables
+      * examples
+        * Binomial, Geometric, Hypergeometric, Multinomial, Negative Binomial, Poisson
+        
+* **Monte Carlo Simulation Method**
+  * Stochastic Model -> uncertainty is present = model for randomness
+  * account for risk when making decision/quantitative analysis
+  * Finds all possible outcomes of decision & assess risk
+  * Used for statistical sampling methods which are complex
+    * Input model simulated >100 times
+      * end simulations are equally likely
+      * results in probability distribution of possible outcomes
+        * one/many different distributions (chi, normal, uniform, etc)
+    * Transforms numbers from random number generators -> seqs of transformed numbers repeat after certain #of samples
+      * error calculation(mean) does not remove errors
+        * Violate Central Limit Theorem & Law of Large #'s
+      * **Output of Monte Carlo simulations are approximates (5-10% error)** never precise
+    * Tells
+      * All possible events that could/will happen
+      * Probability of each outcome 
+    * Quantified probability
+      * Returned by MC simulation -> gives scenarios w/ numbers
+    * Accuracy
+      * MC can be accurate but never precise because
+        * Large amounts of data involved
+        * Unknowns in system
+        * Probability based -> random prediction = margin of error in results
+      * Resons leading to running bad MC simulation
+        * Using incorrect model/unrealistic probability distribution
+        * Risk factors not complete (unspecified variables)
+        * MC isn't suitable for data
+        * Random #generator used is not good enough
+
+* **Chi-Square statistic**
+  * Can only use on numbers, not precentages, proportions, or mean (ex) bad->10% of 200 people = 20people <-good)
+  * 2 types of tests - both use statistic + distribution
+    * Goodness of fit test = see if data matches a population
+    * test for independence = compare 2 variables in contingency table & see if related (see if distributions of categorical vars differ)
+      * Small chi test statistic =  observed data fits expected data well (relationship)
+      * Large chi statistic = data doesn't fit well (no relationship)
+  * Chi statistic  
+ ![](https://www.statisticshowto.datasciencecentral.com/wp-content/uploads/2013/09/chi-square-formula.jpg)
+    * c = degrees of freedom
+    * O = observed value
+    * E = expected value
+  * Show relationship between <u>categorical variables (non-numerical)</u>
+    * Tells how much difference there is between observed counts if no relationship in population
+      * Low value = high correlation between 2 sets of data
+      * X^2 = 0 means observed values=expected values
+    * Need to compare chi value to critical value from table
+      * **If X^2 > critical value == significant difference between observed & expected**
+      * Or use p-value w/ H0 and HA hypothesis
+        * Small p-values = significant difference
+          * Need chi degrees of freedom (n-1)
+          * Need alpha level (0.10, 0.05, or 0.01) -> 10%, 5%, 1%
+
+* **Goodness of Fit Test**
+  * Test if sample data fits distribution for a certain population (see if sample data represents data in population)
+  * **Common types**
+    * Chi-square
+      * Discrete distributions (binomial, Poisson)
+      * Problem
+        * can only be used for data classifed into classes(bins) -> need to make freq table/histogram
+        * **Needs large sample size for close approximation**
+      * 2 types
+        * Test for independence = compares 2 sets of data to see if there is a relationship
+        * Goodness of fit = fit one categorical variable to distribution
+    * Kolmogorov-Smirnov
+      * Continuous distributions
+      * Test for normallity
+        * Tells when it's unlikely the data follows a normal distribution
+        * Doesn't make assumptions of the distribtion of the data
+      * Problem
+        * Doesn't tell if particular sample came from a normal population
+    * Anderson-Darling
+      * Continuous distributions
+      * Modification of Kolmogorov-Smirnov
+       * Tells if data is unlikely to have normal distribution
+       * More sensitive to deviations in distribution
+    * Shipiro-Wilk
+      * Calculates W-value to see if random sample came from normal population distribution 
+      * Recommends samples up to n=2000
+      
+* **Bayesian Statistics/infererence & probability**
+  * Statistics using prior probabilities to answer
+    * Has an event occured before?
+    * Will the event occur based upon current knowledge?
+  * Prior probability = probability distribution summarizing beliefs of an event before(prior) new evidence considered
+    * Adding new evidence = posterior probability
+  * Examples using Bayesian probabilities
+    * Bayes Theorem
+    * Inverse Probability 
 
 </body>
   
