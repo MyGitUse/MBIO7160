@@ -1254,12 +1254,21 @@ P_{\text{i}}(x = \mathtt{ACGTTATACTACG}) = \;
     * Binomial distribution -> pass/fail
     * Normal distribution -> Bell curve
   * Display via table/graph/formula
-  * List
+  * Family/List
     * Discrete probability distribution
       * probability distributions (binomial, normal, Poisson) -> classified as continous or discrete
         * Discrete distribtuion = discrete random variables
       * examples
         * Binomial, Geometric, Hypergeometric, Multinomial, Negative Binomial, Poisson
+    * Beta Distribution
+      * Represent outcomes for percentages/proportions
+      * 3 Betas associated /w function
+        * Beta(α, β)= the name of the probability distribution
+        * B(α, β ) = the name of function in denomiantor of probability distribution function
+          * normalizing constant to ensure area under curve of probability distribution function =1
+        * β= the name of the second shape parameter in the probability distribution function
+        https://www.statisticshowto.datasciencecentral.com/beta-distribution/
+        https://www.statisticshowto.datasciencecentral.com/beta-binomial-distribution/
         
 * **Monte Carlo Simulation Method**
   * Stochastic Model -> uncertainty is present = model for randomness
@@ -1313,6 +1322,27 @@ P_{\text{i}}(x = \mathtt{ACGTTATACTACG}) = \;
           * Need chi degrees of freedom (n-1)
           * Need alpha level (0.10, 0.05, or 0.01) -> 10%, 5%, 1%
 
+* **Maximum Likelihood Estimate**
+  * Finds most likely function to explain observed data
+    * ex) Given model to find probabilities (find prob X >2 if Poisson(2.4) distributed)
+      * parameter of lambda = 2.4
+      * what if model not given for data & need to fit data to model? -> use MLE
+  * MLE takes known probability distributions & compares your dataset to find good fitting match
+    * Distribtuions can have infinite #of parameters
+      * **MLE finds the parameter of the population & most likely generates sample tested**
+      * Match data to distribution = goodness of fit
+  * MLE function
+    * Likelihood of a sample = probability of getting the sample under a distribution model
+      * Likelihood function expresses the probability
+      * parameters maximizing probability of getting the sample = MLE
+    * ex) set of random variables(X) taken from unknown population distribution w/ parameter theta
+      * Distribtuion has probability density function f(X|theta)
+        * f = model
+        * X=set of random vars
+        * Theta=unknown parameter
+      * MLE function finds most likely value for theta when given X random variables
+      ![](https://www.statisticshowto.datasciencecentral.com/wp-content/uploads/2015/09/maximum-likelihood-function.png)
+      
 * **Goodness of Fit Test**
   * Test if sample data fits distribution for a certain population (see if sample data represents data in population)
   * **Common types**
@@ -1349,6 +1379,7 @@ P_{\text{i}}(x = \mathtt{ACGTTATACTACG}) = \;
   * Examples using Bayesian probabilities
     * Bayes Theorem
     * Inverse Probability 
+
 
 </body>
   
