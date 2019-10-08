@@ -2,7 +2,9 @@
 title: "Chapter 2: Statistical Modeling"
 output: html_notebook
 ---
-
+install.packages("Renext")
+BiocManager::install("BSgenome")
+BiocManager::install("BSgenome.Ecoli.NCBI.20080805")
 library(here)
 library(vcd)
 library(Biostrings)
@@ -961,6 +963,7 @@ thetas[which.max(denspost2)]
   * A) Prior's will rarely change posterior distribution unless highly peaked
     * ex) highly sure of expected outcome at the beginning
     * or prior's will change posterior if low dataset -> best to have high data for prior so it doesn't impact final results as much
+    * low likelihood maxima (wider/less peaked) = variable posterior (highly influenced by prior)
     
 * Confidence Statements for proportion parameter
   * Conclude where proportion lies in given data
@@ -980,7 +983,100 @@ quantile(mcpost2, c(0.025,0.975)) #from monte carlo simulation
 # Biostrings package = tools for working w/ sequence data
   # classes -> DNAString & DNAStringSet
 library(Biostrings)
+
+#browseVignettes("packagename")
+#browseVignettes("Biostrings")
+#browseVignettes("phyloseq")
 ```
+
+```{r}
+#vignette(package="Biostrings")
+#vignette("BiostringsQuickOverview", package="Biostrings")
+#vignette()
+```
+
+* Biostrings
+  * 1st line -> genetic code
+  * 2nd line -> IUPAC nucleotide ambiguity code
+  * 3rd line -> lists all vignette available in Biostrings package
+  * 4th line -> displays particular vignette
+  
+```{r}
+# BSgenome package - many whole genome seqs which can be accessed 
+
+# BiocManager::install("BSgenome")
+library(BSgenome)
+ag <- available.genomes()
+length(ag)
+
+ag[1:2]
+
+```
+
+* Want to look for "AGGAGGT" motif frequency in E.coli strain K12 genome
+```{r}
+# BiocManager::install("BSgenome.Ecoli.NCBI.20080805")
+library(BSgenome.Ecoli.NCBI.20080805)
+Ecoli
+RBS <- "AGGAGGT"
+ecoli <- Ecoli$NC_010473
+```
+
+```{r}
+# Count motif pattern frequency in length of 50,000nt via countPattern
+
+window <- 50000
+starts <- seq(1, length(ecoli)-window, by=window)
+ends <- (starts+window)-1
+
+numMatches <- vapply(seq_along(starts), function(i){countPattern(RBS, ecoli[starts[i]:ends[i]], max.mismatch = 0)}, numeric(1))
+
+table(numMatches)
+```
+
+* Q) What distribution might fit the table 
+```{r}
+# A) Poisson
+
+library(vcd)
+gf <- goodfit(numMatches, "poisson")
+summary(gf)
+
+distplot(numMatches, type="poisson")
+```
+
+```{r}
+# Inspect matches via matchPattern()
+sdMatches <- matchPattern(pattern=RBS, subject=ecoli, max.mismatch = 0)
+sdMatches
+```
+```{r}
+# Check distances between the matches/patterns
+
+betweenmotifs <- gaps(sdMatches)
+betweenmotifs
+```
+
+* 66 complementary regions 
+
+* Find model for the gap sizes between motifs distribution
+  * Motifs occur at random locations -> gap lengths should follow an exponential distribution
+    * why guess exponential distribution? -> Independent Bernoulli occurances along seq (gap/no gap?) then gap lengths exponential
+      * Radioactive decay (times between emission = exponentially distributed)
+```{r}
+# Assess if exponential distribution is a good fit for gap lengths
+  # Points should lie on s8 line
+  # exponential distributions have one parameter (rate), line of slope = estimate from data
+
+#install.packages("Renext")
+library(Renext)
+expplot(width(betweenmotifs), rate=1/mean(width(betweenmotifs)),labels="fitted exponential")
+```
+
+* Q) Why is there a slight deviation at the right tail (upper limit) of data?
+  * Gap lengths in further positions less closely distributed??
+  
+* Modeling in the case of dependencies
 
 
 * **
