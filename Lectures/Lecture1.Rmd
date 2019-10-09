@@ -3,8 +3,11 @@ title: "Chapter 1: Generative Models for Discrete Data"
 output: html_notebook
 ---
 
+
+```{r, dependencies}
 library(here)
 library(tidyverse)
+```
 
 <body>
       <font face = "Times New Roman">
@@ -255,7 +258,7 @@ rbinom(n=1, prob = 0.3, size = 15)  # Binomial form (sum of 15 Bernoulli trials)
 #Q) What is the most common outcome number after 0 to 15 Bernoulli trials? 
   # Check probability mass distribution
 
-#0 to 15 trials, filp coin 15 times per trial, success probability of heads is 0.3
+#0 to 15 filps of coin per trial(15), success probability of heads is 0.3
 prob <- dbinom(0:15, prob=0.3, size=15)
 round(prob, 2)
 ```
@@ -268,7 +271,7 @@ barplot(prob, names.arg=0:15, col="red")
 ```{r}
 #Q) output of the formula for k=3, p=2/3, n=4? B(4,2/3)
   # per 1 Bernoulli trial
-    # n = flip a coin 4 times in 1 trial (size)
+    # n = flip a coin 4 times (trial/size)
     # p = probability of heads is 2/3
     # k = expected success (heads) of 3
   # dbinom will find success rate of 3 heads when flipped 4 times in one trial
@@ -345,7 +348,7 @@ barplot(s, ylim=c(0,7), width=0.7, xlim=c(-0.5,100.5), names.arg=seq(from=1, to=
 ```
 
 ```{r}
-#Results from 50 assays summed (50 Bernoulli patients each replicatively tested for total 100 protein positions) using actual data
+#Real data results from 50 assays summed (50 Bernoulli patients each replicatively tested for total 100 protein positions) using actual data
   #n=100 positions on protein tested independently (replicates)
   #size(n)=50 patients
   #p=0.01
@@ -509,7 +512,7 @@ t(rmultinom(1, prob=pvec, size=8)) #transpose t(col<->row) the matrix made by rm
 Here, you can see that outcomes using equal probabilities don't have equal outcomes
 
 ```rmultinom(n = 8, prob = pvec, size = 1)``` vs ```rmultinom(n = 1, prob = pvec, size = 8)```  
-&emsp; size=1 represents 1 action in n=8 trials/repeats (output =1 or 0), size=8 represents 8 actions in n=1 trials (sum of 1's per row of probabilities)
+&emsp; size=1 represents 1 trial w/ n=8 observations/repeats (output =1 or 0), size=8 represents 8 trials in n=1 observation (sum of 1's per row of probabilities)
 
 * Simulating for power
   * Monte Carlo for stimulation of multinomial distribution

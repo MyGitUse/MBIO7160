@@ -3,9 +3,12 @@ title: "Chapter 2: Statistical Modeling"
 output: html_notebook
 ---
 
+
+```{r, dependent}
 library(here)
 library(vcd)
 library(Biostrings)
+```
 
 <body>
       <font face = "Times New Roman">
@@ -319,7 +322,7 @@ table(cb)
 ```{r}
 # Find the estimated-value of this data (p hat)
 
-bb <- goodfit(cb, "binomial")
+bb <- goodfit(cb, "binomial") #remember to check by rootogram to see if good distribution fit
 bb$par
 ```
 
@@ -1207,9 +1210,150 @@ P_{\text{i}}(x = \mathtt{ACGTTATACTACG}) = \;
 &P_{\text{i}}(\mathtt{TA})\, P_{\text{i}}(\mathtt{AT})\, P_{\text{i}}(\mathtt{TA})\, P_{\text{i}}(\mathtt{AC})\, P_{\text{i}}(\mathtt{CG}). \tag{2.7} 
 \end{align}   
 
+* Compare this probability to probability of non-CpG island
+  * Take ratios & see if > or < 1 == **log-likelihood ratio score**
+  
+  \begin{align}
+\log&\frac{P(x\,|\, \text{island})}{P(x\,|\,\text{non-island})}=\nonumber\\
+\log&\left(
+\frac{P_{\text{i}}(\mathtt{A})\, P_{\text{i}}(\mathtt{A}\rightarrow \mathtt{C})\,
+P_{\text{i}}(\mathtt{C}\rightarrow \mathtt{G})\,
+P_{\text{i}}(\mathtt{G}\rightarrow \mathtt{T})\, P_{\text{i}}(\mathtt{T}\rightarrow \mathtt{T})\, P_{\text{i}}(\mathtt{T}\rightarrow \mathtt{A})}
+{P_{\text{n}}(\mathtt{A})\, P_{\text{n}}(\mathtt{A}\rightarrow \mathtt{C})\, P_{\text{n}}(\mathtt{C}\rightarrow \mathtt{G})\,
+P_{\text{n}}(\mathtt{G}\rightarrow \mathtt{T})\, P_{\text{n}}( \mathtt{T}\rightarrow  \mathtt{T})\, P_{\text{n}}( \mathtt{T}\rightarrow \mathtt{A})} \right. \times\nonumber\\
+&\left.
+\frac{P_{\text{i}}(\mathtt{A}\rightarrow \mathtt{T})\, P_{\text{i}}(\mathtt{T}\rightarrow \mathtt{A})\, P_{\text{i}}(\mathtt{A}\rightarrow \mathtt{C})\,
+P_{\text{i}}(\mathtt{C}\rightarrow \mathtt{G})}
+{P_{\text{n}}(\mathtt{A}\rightarrow \mathtt{T})\, P_{\text{n}}(\mathtt{T}\rightarrow \mathtt{A})\, P_{\text{n}}(\mathtt{A}\rightarrow \mathtt{C})\, P_{\text{n}}(\mathtt{C}\rightarrow \mathtt{G})} \right) \tag{2.8} 
+\end{align}
+
+* This is equivalent to calculating by summing each individual log ratio 
+\begin{align}
+\ Σ log(P_{\text{i}}(\mathtt{A})/P_{\text{n}}(\mathtt{A})),..., \log(P_{\text{i}}(\mathtt{T}\rightarrow \mathtt{A})/P_{\text{n}}(\mathtt{T}\rightarrow \mathtt{A}))
+\end{align}
+
+```{r}
+# Log-likelihood ratio with R
+
+alpha <- log((freqIsl/sum(freqIsl))/((freqNon)/sum(freqNon)))
+beta <- log(MIsl/MNonIsl)
+x <- "ACGTTATACTACG"
+```
+
+```{r}
+LogLScore <- function(x){
+  s = unlist(strsplit(x, ""))
+  score = alpha[s[1]]
+  if (length(s)>=2)
+    for (j in 2:length(s))
+      score = score+beta[s[j-1],s[j]]
+  score
+}
+```
+
+```{r}
+#Run log-likelihood score function on sequence X
+
+LogLScore(x)
+```
+
+
+* Now pick sequences of length 100 out of the 2855 seqs in `seqCGI` & `seqNonCGI` (CpG & non island in chr8)
+  * Make a function `generateRandomScores`
+    * first 3 lines -> remove sequences w/ nts other than "ATCG" (ex) ambiguous N or . for undefined)
+    * Then calculate probabilities of remaining seqs (length-100)
+    * Then pick subsequences of length 100 out of the remaining seqs
+      * start pts of subseqs sampled uniformly (constraint -> subseqs have to fit in)
+```{r}
+generateRandomScores = function(s, len = 100, B = 1000) {
+  alphFreq = alphabetFrequency(s)
+  isGoodSeq = rowSums(alphFreq[, 5:ncol(alphFreq)]) == 0
+  s = s[isGoodSeq]
+  slen = sapply(s, length)
+  prob = pmax(slen - len, 0)
+  prob = prob / sum(prob)
+  idx  = sample(length(s), B, replace = TRUE, prob = prob)
+  ssmp = s[idx]
+  start = sapply(ssmp, function(x) sample(length(x) - len, 1))
+  scores = sapply(seq_len(B), function(i)
+    LogLScore(as.character(ssmp[[i]][start[i]+(1:len)]))
+  )
+  scores / len
+}
+```
+
+
+```{r}
+scoresCGI    <-  generateRandomScores(seqCGI)
+scoresNonCGI <-  generateRandomScores(seqNonCGI)
+
+head(scoresCGI)
+head(scoresNonCGI)
+```
+
+```{r}
+br = seq(-0.6, 0.8, length.out = 50)
+h1 = hist(scoresCGI,    breaks = br, plot = FALSE)
+h2 = hist(scoresNonCGI, breaks = br, plot = FALSE)
+plot(h1, col = rgb(0, 0, 1, 1/4), xlim = c(-0.5, 0.5), ylim=c(0,120))
+plot(h2, col = rgb(1, 0, 0, 1/4), add = TRUE)
+```
+
+* This is known as the **training data** = information from orignal data (types)
+  * Use to see if score is useful for discrimination
+    
 
 * **
 <p id="13"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
+
+
+```{r}
+#2.1
+
+ex1 <- rbinom(n=1000, prob=1e-4, size=1000)
+ex1s <- sum(ex1)
+ex1sg <- goodfit(ex1, "binomial")
+rootogram(ex1sg, xlab="Levels" ,rect_gp=gpar(fill="green"), main="Binomial good-fit test")
+```
+
+```{r}
+# 2.2
+
+ex2 <- function(n){
+  runif(n=n, min=0, max=7)
+}
+
+ex2(25)
+
+# Monte Carlo simulate
+ex2m <- replicate(100, {max(ex2(25))})
+hist(ex2m, col="red", xlab="Maxima value of Uniform")
+
+# don't know which MLE formula to use -> poison or binomial? But this is a uniform distribution
+```
+
+```{r}
+# 2.3
+  # note multiplicity = number of codons(3nts) that code for same AA (ranges 2-6)
+
+mtb <- read.table(here("BookStuff", "data", "M_tuberculosis.txt"), header=TRUE)
+head(mtb[mtb$AmAcid=="Pro",], n=4) #n=4 -> view 4 rows
+```
+
+```{r}
+# 2.3 cont
+  # Frequency of proline seen
+
+prolineMTB <- mtb[mtb$AmAcid=="Pro", "Number"]
+prolineMTB/sum(prolineMTB)
+```
+
+
+```{r}
+# 2.5
+ex2.5 <- rbeta(n=5, shape1=3, shape2=3)
+plot(ex2.5, col="blue")
+```
 
 
 * **
@@ -1266,10 +1410,23 @@ P_{\text{i}}(x = \mathtt{ACGTTATACTACG}) = \;
         * Beta(α, β)= the name of the probability distribution
         * B(α, β ) = the name of function in denomiantor of probability distribution function
           * normalizing constant to ensure area under curve of probability distribution function =1
-        * β= the name of the second shape parameter in the probability distribution function
-        https://www.statisticshowto.datasciencecentral.com/beta-distribution/
-        https://www.statisticshowto.datasciencecentral.com/beta-binomial-distribution/
-        
+        * β= the name of the second shape parameter in the probability distribution function  
+![](https://www.statisticshowto.datasciencecentral.com/wp-content/uploads/2015/08/beta-distribution.png)
+           * > α and β are two positive shape parameters which control the shape of the distribution. 
+           * > For example, if α < 1 and Β < 1, the graph’s shape will be a “U” 
+           * > if α = 1 and Β = 2, the graph is a straight line
+        * so alpha and beta parameters control the shape of this function
+    * [Beta-Binomial Distribution & Beta-Bernoulli Distribution](https://www.statisticshowto.datasciencecentral.com/beta-binomial-distribution/)
+      * Mixture of beta distribution + binomial distribution 
+      * Simplist model for Bayesian statistics 
+      * > A distribution is beta-binomial if p, the probability of success, in a binomial distribution has a beta distribution with shape parameters α > 0 and β > 0. The shape parameters define the probability of success. 
+        * Large alpha and beta -> approach binomial distribution
+        * If alpha and beta = 1 then distribution is discrete(finite) uniform from 0 to n
+        * If n=1 then Bernoulli distribution
+      * Binomial vs Beta-binomial 
+        * Binomial p-value fixed for set of trials
+        * Beta-binomial p-value non-fixed and differs from trial to trial
+      
 * **Monte Carlo Simulation Method**
   * Stochastic Model -> uncertainty is present = model for randomness
   * account for risk when making decision/quantitative analysis
