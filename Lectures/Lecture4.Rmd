@@ -3,6 +3,20 @@ title: "Chapter 4: Mixture Models"
 output: html_notebook
 ---
 
+```{r packages, hidecode}
+library(here)
+library(ggplot2)
+library(dplyr)
+library(mclust)
+library(mixtools)
+library(pscl)
+library(mosaics)
+library(HistData)
+library(bootstrap)
+library(vcd)
+```
+
+
 <body>
       <font face = "Times New Roman">
   
@@ -81,8 +95,8 @@ output: html_notebook
   
 ![](https://i.ytimg.com/vi/uKRP1ARFxfI/hqdefault.jpg)
 ```{r}
-cflips <- (runif(1e4) > 0.5) # generate 10,000 observations of uniform distribution (min=0, max=1) - are similated values > sd 0.5 (logical) 
-table(cflips)
+coinflips <- (runif(1e4) > 0.5) # generate 10,000 observations of uniform distribution (min=0, max=1) - since 0 to 1 values, anything more than half is TRUE(logical) -mixing fraction λ=0.5
+table(coinflips)
 ```
 
 ```{r}
@@ -98,12 +112,676 @@ oneFlip <- function(fl, mean1=1, mean2=3, sd1=0.5, sd2=0.5){ #Sqrt var(0.25) = 0
   }}
 ```
 
+```{r}
+#Generate mixture model from both normal distributions 
 
+fairmix <- vapply(coinflips, oneFlip, numeric(1))
+ggplot(tibble(value=fairmix), aes(x=value)) + 
+  geom_histogram(fill="purple", binwidth = 0.1)
+```
+
+* Q) Use R-vector syntax instead of vapply loop & generate fairmix
+```{r}
+# A) note looks different because variences used instead of standard dev
+means <- c(1,3)
+variences <- c(0.25, 0.25)
+values <- rnorm(length(coinflips), 
+                mean=ifelse(coinflips, means[1], means[2]),
+                sd=ifelse(coinflips, variences[1], variences[2]))
+
+ggplot(tibble(value=values), aes(x=values)) + 
+  geom_histogram(fill="purple", binwidth = 0.1)
+```
+
+* Q) Use the vectorized code above, to simulate 1mil coin flips.
+  * Make a histogram w/ 500 bins
+
+```{r}
+# A) Use tibble dataframe to organize flips/simulated normal values 
+
+fair <- tibble(
+  cflips=(runif(1e6)>0.5),
+  values1 =rnorm(length(cflips), 
+                mean=ifelse(cflips, means[1], means[2]),
+                sd=ifelse(cflips, variences[1], variences[2])))
+
+ggplot(fair, aes(x=values1)) + 
+  geom_histogram(fill="purple", bins=500)
+
+```
+
+* Increase of #observations & bins means the histogram gets more smooth
+  * **Smooth limiting histogram curve  == Density function** of random variable (this case `fair$values`)
+    * Density function for normal N(μ,σ) random variable can be written as ϕ(x)
+\begin{align}
+\phi(x)=\frac{1}{\sigma \sqrt{2\pi}}e^{-\frac{1}{2}(\frac{x-\mu}{\sigma})^2}
+\end{align}
+
+* Q) Plot a histogram of TRUE values for coinflips, corresponding to simulated normal fair$values & add the line corresponding to ϕ(x)
+```{r}
+# A) filter(dataframe, colname) only filters for TRUE in colname specified
+  # aes(y=..density..) specifies vertical axis shows PROPORTION of counts
+  # stat_function() superimposes a function on top of plot
+
+ggplot(filter(fair, cflips), aes(x=values1)) +
+  geom_histogram(aes(y=..density..), fill="purple", binwitdh=0.01) +
+  stat_function(fun=dnorm, args=list(mean=means[1], sd=variences[1]), color="red")
+```
+
+* Density formula for all simulated normal `fair$values` is a sum of both densities (2 normal distribs)
+
+\begin{equation}
+f(x)=\frac{1}{2}\phi_1(x)+\frac{1}{2}\phi_2(x)
+\tag{4.1}
+\end{equation}
+
+* Where ϕ(x) is defined as the above formula
+  * ϕ1 is the density of normal N(μ1=1,σ<sup>2</sup>=0.25)
+  * ϕ2 is the density of normal N(μ1=3,σ<sup>2</sup>=0.25)
+
+```{r}
+# Aside - 0.5*dnorm b/c 0.5 percent chance of Heads/Tails
+
+fairtheory <- tibble(
+  x=seq(-1,5, length.out=1000),
+  f=0.5*dnorm(x, mean=means[1], sd=variences[1])+
+    0.5*dnorm(x, mean=means[2], sd=variences[2]))
+
+ggplot(fairtheory, aes(x=x, y=f)) +
+  geom_line(color="red", size=1.5) + ylab("mixture density") + ggtitle("Theoritical density of mixtue")
+```
+* In this case, the two component distribution (2 normals) have low overlap
+  * Shows two peaks = bimodal distribution
+  * Many mixture models don't have a clear separation
+  
+* Q) Guess the mean parameter of two normal distributions which overlap and have the same variences
+  * Use trial and error simulation of mixtures to see if the distributions overlap
+```{r}
+# A) Red = points from heads flip, blue = points from tails flip - means(parameters) must be close for overlap
+
+means4.4 <- c(2.5,3)
+variences4.4 <- c(0.25,0.25)
+mystery <- tibble(
+  coinflips4.4 = (rnorm(1000)>0.5),
+  values4.4 =rnorm(length(coinflips4.4), 
+                mean=ifelse(coinflips4.4, means4.4[1], means4.4[2]),
+                sd=ifelse(coinflips4.4, variences4.4[1], variences4.4[2])))
+
+head(mystery,3)
+
+br <- with(mystery, seq(min(values4.4), max(values4.4), length.out=30)) #using dataframe - min(colname) to max(colname)
+
+ggplot(mystery, aes(x = values4.4)) +
+  geom_histogram(data = dplyr::filter(mystery, coinflips4.4), #filter all true
+     fill = "red", alpha = 0.2, breaks = br) +
+  geom_histogram(data = dplyr::filter(mystery, !coinflips4.4), #filter all false
+     fill = "darkblue", alpha = 0.2, breaks = br) 
+```
+
+```{r}
+# Another way of showing above figure
+
+ggplot(mystery, aes(x = values4.4, fill=coinflips4.4)) +
+  geom_histogram(breaks=br, alpha=0.2) +
+  scale_fill_manual(values=c('TRUE'="red", 'FALSE'="blue"), guide=FALSE)
+```
+
+* Both methods of showing overlapping distributions utilize `confilips` column of TRUE/FALSE to separate components/groups by colour
+  * In real data, this would be missing information
+  
+* Discover hidden groups labels ("black box")
+  * Use **expectation-maximizatiom (EM) algorithm** - infers hidden groups (classes) mixed in dataset
+    * EM algorithm is a iterative procedure  between the following:
+      1. Infers known probability for each observation in a group/component & estimates distribution parameters of groups/components (forward)
+      2. Infers parameters of distribution & estimates probability for each observation in group/component (reverse)
+      
+* Ex) Measure variable Y on series of objects that may come from 2 groups
+  * Group labels are unknown
+    * Need to augement (via adding unmeasured variable = latent variable(U)) the dataset
+    * <u>Want to find values of latent variable(U) & unknown parameters of the mixture model densities</u>
+      * Use a maximum likelihood approach (from ch2) -> estimate parameters of fitting dataset Y
+      * Use **bivariate distribution** -> distribution of couples (Y,U)
+      * Probability density under a parametric model
+
+\begin{equation}
+f_\theta(y,u) = f_\theta(y\,|\,u) f_\theta(u)
+
+\tag{4.2}
+\end{equation}
+
+* Where
+  * theta = tuple of parameters for the model 
+    * ex) for a bivariate normal distribution, theta = the two means & 2 sd & **mixture fraction of mixture model** λ=0.5
+    * θ=(μ1,μ2,σ1,σ2,λ)
+
+* Q) Assume 2 unfair coins, probability of heads p1=0.125, p2=0.25
+  * With probability PP -> pick coin1, 1-PP is probability of coin 2
+  * Toss coin twice & record number of heads(K)
+  * Simulate 100 instances of this w/ PP=1/8 - compute contingency of table (K)
+    * Do the same when PP=1/4
+    * If p1 & p2 & PP not given, can this be infered from the contingency table?
+```{r}
+# A) Use for loop to test both PP probabilities
+probHead <- c(0.125, 0.25)
+for(PP in c(1/8, 1/4)){
+  whCoin = sample(x=2, size=100, replace=TRUE, prob=c(PP,1-PP))  #random sample of 100obs outputting 1 or 2 w/ input prob
+  K = rbinom(length(whCoin), size=2, prob=probHead[whCoin]) #this simulates the contingency table for heads(K) using the probabilities used to calculate whCoin vector (ex) 1 = 1/8, 2= 1/8)
+  print(table(K))
+}
+```
+* Interpretation of contingency table above
+  * There are two tables, the top(K) represents when PP=1/8 & bottom(K) represents when PP=1/4 (where PP= probability of picking first unfair coin w/ heads p1=0.125, 1-PP = 2nd unfair coin w/ heads p2=0.25)
+  * In the first table, the count of getting no heads in 100 trials is 60, 1heads/100 trials is 32 and 2heads/100 trials is 8
+  
+* This question shows the issue of **indentifiability** -> same observed values can have several explainantions of values (p1, p2, PP)
+  * <mark style='background-color:yellow'>Occurs when too much degrees of freedom in parameters</mark> 
+
+> Degrees of freedom of an estimate is the number of independent pieces of information that went into calculating the estimate. It’s not quite the same as the number of items in the sample. In order to get the df for the estimate, you have to subtract 1 from the number of items. Let’s say you were finding the mean weight loss for a low-carb diet. You could use 4 people, giving 3 degrees of freedom (4 – 1 = 3), or you could use one hundred people with df = 99.
+  
+* Mixture of normals -> ex) mixture of two normal distributions w/ unknown mean parameters, known sd of 1 for both distirbutions
+  * (μ1=?,μ2=?,σ1=σ2=1)
+```{r}
+# example of data generated using this model. Labels are (u) - similar to previous question where label was coinflips
+mus <- c(-0.5, 1.5)
+u <- sample(2, size=100, replace=TRUE)
+y <- rnorm(length(u), mean=mus[u])
+duy <- tibble(u,y)
+head(duy)
+```
+
+* notice in the `coinflips` sample, the results were logical (TRUE/FALSE). Here, since the means are unknown - the values are 2 or 1
+* If we know the labels (u), can estimate means using separate MLEs for each group
+  * The overall MLE obtained by maximizing the following equation. Or by it's log.
+    * Maximization can be split into 2 independent pieces & solved (ex) 2 different MLE equations to solve)
+  
+\begin{equation}
+f(y, u \,|\, \theta) =
+\prod_{\{i:\,u_i=1\}} \phi_1(y_i)
+\prod_{\{i:\,u_i=2\}} \phi_2(y_i),
+\tag{4.3}
+\end{equation}
+
+```{r}
+group_by(duy, u) %>% summarise(mean(y)) #group the duy tibble at u column (group 1 or 2), then summarize the mean all y's within group
+```
+
+* Q) Assume the mixing fraction is know as λ=0.5
+  * 0.5Ф1 + 0.5Ф
+  * Write out the log(likelihood)
+    * what prevents solving for MLE here?
+* A) CH19 shows computation of likelihood of finite mixture models
+  * To estimate a mixture model, need weighted MLE - weights given by posterior label probabilities
+  * repetition depends on parameters estimated
+  * Don't know lables u or mixture proportion λ in real data
+    * Need to have an inital guess for labels (u)
+    * Need to estiamte parameters
+    * Need iterations through EM algorithm - this updates "best guess" for group labels & parameters
+      * eventually, this effect plateaus into no improvement per cycling
+  * Can replace the "hard labels" for u observations (groups 1 & 2)
+    * via group membership probabilities summing to 1
+    * Probability p(u,x|θ) is the weight/participation of observed x in likelihood function
+      * AKA soft averaging - make weighted averages where each pts probabilities used as weight. Don't have to decide if the point belongs to one group or another
+  * **Marginal likelihood** for observed y = sum overall possible values of (u) of the densities at (y,u)
+  
+  \begin{equation*}
+\text{marglike}(\theta;y)=f(y\,|\,\theta)=\sum_u f(y,u\,|\,\theta) \,\text{d}u.
+\end{equation*}
+
+* Each iteration (present values marked \*) includes the current best guess for unknown parameters (ex) μ1\*, μ2\*)
+  * This is combined into θ* =(μ1\*, μ2\*, λ*)
+    * Used to compute expection function E*(θ) (expectation = average/integrate over all possible values of u)
+    
+\begin{equation*}
+E^*(\theta)=E_{\theta^*,Y}[\log p(u,y\,|\,\theta^*)]=\sum_u p(u\,|\,y ,\theta^*)
+\log p(u,y\,|\,\theta^*),
+\end{equation*}
+
+* Value of θ maximizing E* found in _maximization step_
+  * Iterations through E & M repeated until E* increases are small -> indicates plateauing likelihood = reaching local max
+    * Iteration path _depends on starting point_ but always end up at the same end point (assuming 1 end point)
+    * Good practice to repeat procedure several times from different start points to see if same answer received
+    
+* Q) Multiple packages for EM algoritm (mclust, EMcluster, EMMIXskew)
+  * Pick one and test EM function w/ different starting values
+  * Use function `normalmixEM` from `mixtools` package for output comparison
+```{r}
+#install.packages("mclust")
+#install.packages("mixtools")
+
+# A)
+
+y <- c(rnorm(100, mean=-0.2, sd=0.5),
+       rnorm(50, mean=0.5, sd=1))
+```
+
+```{r}
+mixtools <- normalmixEM(y, k=2, lambda=c(0.5,0.5), mu=c(-0.01,0.01), sigma=c(1,1))
+paste(mixtools$lambda, "when lambda")
+paste(mixtools$mu, "when mean")
+paste(mixtools$sigma, "when sd")
+paste(mixtools$loglik, "when loglikelihood")
+```
+
+
+```{r}
+mclust <- Mclust(data=y)
+mclust$parameters
+paste(mclust$loglik, "when loglikelihood")
+```
+
+* 2 different packages, but very similar outcome due to convergence of iterations
+
+* EM algorithm is very instructive
+  * Show that hard questions w/ many unknowns can be solved via alternating by solving simpler problems
+    * Eventually finds estimates of hidden variables
+  * Exaple of **soft averaging** (don't need to decide if observation belongs to group 1 or 2 - observation can join multiple groups by using probability membership as weights) -> better estimates of parameters
+  * Can use this method for general case of model averaging
+    * Consider several models at once to see which is better fit for data -> combine them into a weighted model
+    * Weights provided by likelihoods of each model
+    
+* Models for zero-inflated data
+  * Ecological & molecular data often in counts
+    * Sometimes, contains counts of 0
+    * Mixture models of data with zeros
+    
+\begin{equation*}
+f_{\text{zi}}(y) = \lambda \, \delta(y) + (1-\lambda) \, f_{\text{count}}(y),
+\end{equation*}
+
+* Where Deltha = Dirac delta function -> represents prob distribution w/ mass at 0
+  * 0's in first mixture component (delta) = "structural" for this example
+    * This is due to <u>certain species not living in certain habitats</u> (this example)
+  * 0's in the second component (fcount)
+    * This is due to <u>not finding certain members of a species</u> in some locations (this example)
+* The `pscl & zicounts` package has datasets & functions for working w/ zero-inflated counts
+
+* Ex) ChIP-Seq data
+  * Sequences of DNA from chromatin immunoprecipitation -> map location along genomic DNA
+  * example dataset from `mosaics` package= data measured on chromosome22 via ChIP-seq of antibodies for STAT1 protein & H3K4me3 histone modification to some cell line
+    * `binTFBS` dataset = binding sites for one chromosome22
+
+```{r}
+# install.packages("pscl") ; BiocManager::install(c("zicounts", "mosaics"))
+
+datafiles = (here("BookStuff", "data", c("wgEncodeSydhTfbsGm12878Stat1StdAlnRep1_chr22_sorted.bam_fragL200_bin200.txt", 
+              "wgEncodeSydhTfbsGm12878InputStdAlnRep1_chr22_sorted.bam_fragL200_bin200.txt")))
+binTFBS <- readBins(type = c("chip","input"), fileName = datafiles)
+binTFBS
+
+```
+
+```{r}
+# Create histogram of per-bin counts
+bincts <- print(binTFBS)
+ggplot(bincts, aes(x=tagCount)) +
+  geom_histogram(binwidth=1, fill="forestgreen") + ggtitle("#binding sites found in 200nt window along chrom22 ChIP-seq")
+```
+* Note at tagCount0 there is a high y-axis count of 0
+  * However, not sure if the # of 0's is really high b/c of frequencies of other small #'s (1, 2, ...)
+  
+* Q) Redo histogram counts using log base10 scale on y-axis
+  * Estimate π0 (PP0) proportion of bins w/ 0 counts
+  
+```{r}
+# A) 
+ggplot(bincts, aes(x=tagCount)) + scale_y_log10() +
+  geom_histogram(binwidth=1, fill="forestgreen")
+```
+
+* More than 2 components
+  * So far, mixtures w/ 2 components but what if more? 
+    * ex) Weighing N=7000 nucleotides from mixtures of dNMPs (each type has different weight, all measured w/ same sd=3)
+```{r}
+masses <- c(A=331, C=307, G=347, T=322)
+probs <- c(A=0.12, C=0.38, G=0.36, T=0.14)
+N <- 7000
+sd <- 3
+nuclt <- sample(x=length(probs), size=N, replace=TRUE, prob=probs)
+quadwts <- rnorm(length(nuclt), mean=masses[nuclt], sd=sd)
+ggplot(tibble(quadwts=quadwts), aes(x=quadwts)) + 
+  geom_histogram(bins=100, fill="purple")
+```
+
+
+* Q) Repeat the above with N=1000 nucleotide measurements - what is the difference in outcome?
+```{r}
+# A) Decrease in counts
+N <- 1000
+nuclt1000 <- sample(x=length(probs), size=N, replace=TRUE, prob=probs)
+quadwts1000 <- rnorm(length(nuclt), mean=masses[nuclt1000], sd=sd)
+ggplot(tibble(quadwts1000=quadwts1000), aes(x=quadwts1000)) + 
+  geom_histogram(bins=100, fill="purple")
+```
+
+* Q) Repeat the above when N=7000 with sd=10 - what is the difference?
+
+```{r}
+# A) More overlap between distributions
+
+N <- 7000
+sd <- 10
+nuclt7k10 <- sample(x=length(probs), size=N, replace=TRUE, prob=probs)
+quadwts7k10 <- rnorm(length(nuclt7k10), mean=masses[nuclt7k10], sd=sd)
+ggplot(tibble(quadwts7k10=quadwts7k10), aes(x=quadwts7k10)) + 
+  geom_histogram(bins=100, fill="purple")
+```
+
+* Q) Plot the theoretical density curve of N=7000, sd=3
+
+```{r}
+means <- c(331,307,347,322)
+sd <- c(3, 3, 3, 3)
+Q4.11<- tibble(
+  x=seq(270,400, length.out=1000),
+  f=0.12*dnorm(x, mean=means[1], sd=sd[1])+
+    0.38*dnorm(x, mean=means[2], sd=sd[2]) +
+    0.36*dnorm(x, mean=means[3], sd=sd[3]) +
+    0.14*dnorm(x, mean=means[4], sd=sd[4]))
+
+ggplot(Q4.11, aes(x=x, y=f)) +
+  geom_line(color="red", size=1.5) + ylab("mixture density") + ggtitle("Theoritical density of mixtue")
+```
+
+* In this case, enough measurements w/ good precision to dsitinguish the 4 nts modes using the theoretical density of mixture
+  * Decomposed into 4 distributions 
+  * This is less clear when less datapoints in data/more noisy data
+  
 * **
 <p id="4"><b><font size="5">Empirical distributions and the nonparametric bootstrap</b></font><a href="#0"><sup>Return</sup></a></p>
 
+* Consider extreme case of mixture model
+  * Model sample of n data points as mixture of n point masses
+    * Can use amost any set of data -> ex) Darwin's Zea mays data (`HistData` package)
+      * Compared heights of 15 pairs of Zea mays plants (15 self-hybridized vs 15 crossed)
+```{r}
+# install.packages("HistData")
+# Plot distribution of 15 differences in height
+
+ZeaMays$diff
+ggplot(ZeaMays, aes(x=diff, ymax=1/15, ymin=0)) +
+  geom_linerange(size=1, col="forestgreen") + ylim(0,0.1)
+```
+
+* The **emperical cumulative distribution function (ECDF)** for sample of size n
+
+\begin{equation}
+\hat{F}_n(x)=  \frac{1}{n}\sum_{i=1}^n {\mathbb 1}_{x \leq x_i},
+\tag{4.4}
+\end{equation}
+
+* ECDF plots -> write density of sample as 
+
+\begin{equation}
+\hat{f}_n(x) =\frac{1}{n}\sum_{i=1}^n \delta_{x_i}(x)
+\tag{4.5}
+\end{equation}
+
+* Density of probability distribution is the derivative (if exists) of distribution function
+  * Consider delta(a) as derivative of step function 1(x <= a) in (4.4)
+    * It's completely flat almost everywhere, except at point a where the step occurs (value is infinite)
+  * Eqn (4.5) shows that dataset can be considered as mixture of _n point masses_
+    * one point at each observed value x1, x2,...,xn (shown by the plot above)
+* Statistics of the sample (mean, min, median) can be written as function of ECDF
+  * ex) \begin{equation}\bar{x} = \int \delta_{x_i}(x)\,\text{d}x\end{equation}
+  * ex) if n is odd#, median value is \begin{equation}x_{(\frac{n+1}{2})}\end{equation} 
+* The **true sampling distribution** of statistic T(hat) is hard to find
+  * Needs many different data samples to compute this statistic (sampling variability)
+* **Bootstrap** principle approximates true sampling distribution of T(hat)
+  * creates new samples drawn from original dataset
+    * reuse data (considered a mixture distribution of delta's) to make "new datasets" 
+    * Take samples from original data to look for sampling distriubtion of statistic T(hat) computed on the dataset
+  * This is known as **nonparametric bootstrap resampling approach**
+  
+  
+* Basically - T(hat) the statistic of the distribution is calculated/estimated from various sets of data within their own matracies(F) - each is a distribution
+  * Different samples from F are from different data -> leads to different estimates of T(hat) == sampling variabiilty
+  * The distributions of all T(hat)'s from all data is called the sampling distribution
+* So to counteract this sampling variability of creating multiple T(hat) from different datasets
+  * nonparametric bootstraping simulates the sampling variability -> pick samples not from true distribution F but from emperical distribution F(hat)<sub>n</sub>
+
+
+* ex) estimate sampling distribution of median of Zea mays differences
+  * Use simulation
+    * Draw B=1000 samples of size 15 from 15 values(0:15) (each is component - 15 component mixture)
+    * Find median of each of these 1000 samples w/ 15 values each
+    * Look for bootstrap distribtuion of the 1000 medians
+```{r}
+B <- 1000
+meds <- replicate(B, {
+  i = sample(15, size=15, replace=TRUE)
+  median(ZeaMays$diff[i])
+})
+
+ggplot(tibble(medians=meds), aes(x=medians)) + 
+  geom_histogram(bins=30, fill="purple")
+```
+
+* Q) Estimate a 99% confidence interval for the median based on the simulations
+  * What can be concluded by looking at overlap between this interval & 0?
+
+```{r}
+# ???? - Bootstrap percentile/quantile method
+  # 99% CI means 100%-99% = trim 1% off ends of the distribution (0.5% each upper/lower = 0.005)
+  # In quantiles this equates to 0.005 quantile & 1-0.005 = 0.995
+  # The conclusion = IDK
+
+quantile(meds,c(0.005,0.995))
+```
+
+* Use `bootstrap` package to redo analysis using the function `bootstrap()` for both median & mean
+  * What are differences between sampling distributions of mean & median?
+```{r}
+#install.packages("bootstrap")
+a <- bootstrap(ZeaMays$diff, nboot=B, theta=mean)
+ggplot(tibble(mean=a$thetastar), aes(x=mean)) + 
+  geom_histogram(bins=30, fill="purple")
+
+b <- bootstrap(ZeaMays$diff, nboot=B, theta=median)
+ggplot(tibble(mean=b$thetastar), aes(x=mean)) + 
+  geom_histogram(bins=30, fill="purple")
+```
+
+* Why nonparametric?
+  * Theoretical statistics -> nonparametric methods = methods allowing for infinitely many degrees of freedom/numbers of unknown parameters
+  * <mark style='background-color:yellow'>When #parameters become large or larger than amount of data -> nonparametric</mark>
+  * Bootstrap uses mixture w/ n components so w/ sample size (n) -> nonparametric method
+  * <mark style='background-color:yellow'>Nonparametric methods do use parameters (all statistical methods estimate unknown quantities)</mark>
+  * When using non-parametric methods - often replace calculations via simulations (ex) bootstrap)
+    * This is instead of generating all possible samples from emperical distribution
+      * Possible in Theory - finite number of samples 
+    * <mark style='background-color:yellow'>Use Monte Carlo simulation to make bootstrap resamples of data</mark>
+
+* Q) If sample has n=3 different values, how many different bootstrap resamples are possible?
+  * Repeat this solution using n=15
+* A) Set of all bootstrap resamples = set of all vectors of n integers (sum is n)
+  * Denoted by k=(k1, k2,...,kn) is the #of times the observations (x1, x2,...,xn) occur in a bootstrap sample
+    * each k is a box (similar to multinomial distribtuion)
+      * n boxes to drop n balls
+  * Can count #configurations via counting #of ways separating n balls into boxes
+    * ex) write down n times (a ball) & n-1 times (a separator (|)) between them
+      * So 2n-1 posiions to fill
+        * Must choose either ball or separator 
+    * If n=3
+      * Possible placement would be ball/ball/|/|/ball (5 positions filled by ball/separator)-> k=(2,0,1)
+        * n=ball, n-1=separator so 3 balls & 2 separators -> vector of n=3, 2 balls in 1st pos, 1 ball in last
+  * In general this number is 
+  
+\begin{equation}
+{2n-1} \choose {n-1}
+\end{equation}
+
+```{r}
+# A) n=3 & n=15 -> nCr
+  # 2n-1 when n=3 -> 5 == n total number of positions to be filled
+  # k = n = 3 number of samples taken in one iteration
+c(N3=choose(n=5,k=3), N15=choose(29,15))
+```
+
+![](https://getcalc.com/formula/statistics/combinations.png)
+
+* permutations = ordering of objects -> n!
+  * nPr -> out of n objects, how many ways to pick r of n objects **Order is important**
+  * nCr -> same as nPr but **Order is not important**
+
+* Q) What are two types of errors that can occur when using the bootstrap method in the `bootstrap` package?
+  * What parameter can you change to improve one of the errors?
+
+* A) Errors
+  * Error1: Monte Carlo simulations of subsets of data via random resampling used to approximate exhaustive bootstrap
+    * By increasing the size of `nboot` argument of `boostrap()` -> this reduces Monte Carlo error
+      * **Keep in mind, exhaustive boostrap is still no exact** b/c using approximate distribution function of data instead of true distribution
+  * Error2: If sample size is small or original sample is biased - approximation will be poor
+    * Doesn't matter how large `nboot` is - this can't resolve the problem
+  * `nboot in bootstrap()` is the number of iterations/sampling desired
+    
+  
+
 * **
 <p id="5"><b><font size="5">Infinite mixtures</b></font><a href="#0"><sup>Return</sup></a></p>
+* Mixture models can be useful even if the goal is not to assign a label to each observation
+  * "Allowing as many labels as observations"
+  * **If #mixture components ≥ #observations = Infinite mixture**
+* Infinite mixture of normals
+  * ex) Create a sample (w) from an exponential distribution
+```{r}
+w <- rexp(10000, rate=1)
+```
+* Now (w) will serve as variences of normal variables w/ mean(μ) - simulated via rnorm
+```{r}
+mu <- 0.3
+lps <- rnorm(length(w), mean=mu, sd=sqrt(w))
+
+ggplot(data.frame(lps), aes(x=lps)) +
+  geom_histogram(fill="purple", binwidth=0.1)
+```
+
+* This is a useful distribution w/ well-understood properties
+  * Discovered by Laplace - person who proved that **median is a good estimator of the location parameter theta**
+    * **also proved median absolute deviation can be used to estimate the scale parameter (Ф) of mixture models (MLE?)**
+
+\begin{equation}
+f_Y(y)=\frac{1}{2\phi}\exp\left(-\frac{|y-\theta|}{\phi}\right),\qquad\phi>0
+\end{equation}
+
+* Lapace density
+  * Knew the above equation (probability density) has median as a location parameter (theta) & median absolute deviation is the scale parameter (Ф)
+  * From this formula
+    * L1 (absolute value of difference) Distance has similar position in Laplace density as
+    * L2 (square of difference) in the normal density 
+
+* Note, in Bayesian regression using Laplace distribution as a prior on the coefficients
+  * Causes an L1 penalty -> lasso
+  * If Normal distribution as a prior, it will cause a L2 penalty -> ridge regression
+
+* Q) Write random variable w/ distribution as symmetric Laplace density
+  * Write as function of normal & exponential random variables
+* A) Write hierarchical model w/ variences generated as exponential variables (W),
+\begin{equation}
+Y = \sqrt{W} \cdot Z, \qquad W \sim Exp(1), \qquad Z \sim N(0,1).
+\tag{4.6}
+\end{equation}
+
+* Asymmetric Laplace
+  * Laplace distribution - variences of normal components depend on (W) -> means are unaffected
+    * where (W) is generated from an exponential distribution
+  * **Add the parameter (theta), which controls location/centers of the components**
+  * ex) Make `alps` dataset - use hierarchical model w/ (W) as exponential variable -> varience of normal
+    * generate (w) from exponential distribution of mean 1 rexp(rate=1)
+    * N(θ+wμ,σw)
+    
+```{r}
+mu = 0.3; sigma=0.4; theta=-1
+w <- rexp(1e4, rate=1)
+alps <- rnorm(length(w), mean=(theta+mu*w), sd=(sigma*sqrt(w)))
+
+ggplot(tibble(alps), aes(x=alps)) +
+  geom_histogram(fill="purple", binwidth=0.1)
+```
+* This is a scale mixture of many normal w/ means & variences dependent (X~AL(theta, mu, sigma))
+* In hierarchical mixture distributions where data has it's own mean + vatience -> useful in biological settings
+
+![log-ratios Microarray](http://web.stanford.edu/class/bios221/book/images/tcellhist.png)
+
+* Q) Look at log-ratio of gene expression values from microarray w/ distribution as above image
+  * Explain the histogram in this form
+* <mark style='background-color:red'>A) Sharper curve seems to indicate that scale parameter is <0, other than that IDK</mark>
+
+
+* Laplace distribution shows that considering generative process can show how varience & mean are linked
+  * expectation & varience of asymmetic Laplace distribution AL(theta, mu, sigma) ->
+    
+    \begin{equation}
+E(Y ) = \theta + \mu \quad\quad\text{and}\quad\quad\text{var}(Y)=\sigma^2+\mu^2.
+\tag{4.7}
+\end{equation}
+
+* **Varience depends on the mean(mu), unless mu=0 (symmetric Laplace distribution)**
+  * Mean-varience dependence is common in physical measurements (ex) microarray, fluorescence intensity, HTS read counts, etc)
+
+* Infinite Mixtures of Poisson Variables
+  * Similar 2-level hieratchical model needed to model real-world count data 
+    * Lower level -> simple Poisson & Binomial distributions can be used a building blocks
+       * Problem = parameters may depdent on latent process
+       * ex) Ecology: Want to study variations in fish species of each lake via estimate true abundances
+         * Can model w/ true abundances using Poisson, but true abundances vary from lake-to-lake
+         * Want to see if climate change/altitude will affect variations -> requires to see if effects of variations lake-to-lake
+         * Different Poisson rate parameters(lambda) - can be modelled as coming from a distribution of rates
+           * This hierarchical model allows addition of supplementary steps of hierarchy
+             * ex) Want to know different types of fish or model effects of altitude/env factors separately
+  * Poisson mixtures also good in modelling
+    * HTS data (ex) RNA seq)
+
+* Gamma distribution: two parameters (shape & scale)
+  * Extension of one-parameter exponential distribution
+  * This distribution has 2 oparameters -> more flexible
+    * Useful bulding block for upper level hierarchical model
+    * +ve value & continous
+  * Density of exponential distribution has max at 0 & then decreases to 0 as value increase to infinity
+    * Gamma distribution has max at some finite value
+* Simulate using examples
+```{r}
+ggplot(tibble(x=rgamma(n=1e4, shape=2, rate=1/3)), aes(x=x)) +
+  geom_histogram(bins=100, fill="purple")
+
+ggplot(tibble(x=rgamma(n=1e4, shape=10, rate=3/2)), aes(x=x)) +
+  geom_histogram(bins=100, fill="purple")
+```
+
+* Gamma-Poisson mixture: Hierarchical model
+  * 2 level scheme
+    * Generate set of parameters (lambda1, 2,...) from gamma distribution
+    * Use parameters to generate set of Poisson(lambda) random variables (one per lambda)
+```{r}
+lambda <- rgamma(1e4, shape=10, rate=3/2)
+gp <- rpois(length(lambda), lambda = lambda)
+
+ggplot(tibble(x=gp), aes(x=x)) +
+  geom_histogram(bins=100, fill="purple")
+```
+
+* Q) Are values generated from gamma-Poisson mixture continous or discrete? (gamma=continous, Poisson=discrete)
+  * What is another name for this distribution? (test using `goodfit()` from vcd package)
+```{r}
+# A) Another name for gamma-poisson is "nbinomial"
+
+ofit <- goodfit(gp, "nbinomial")
+ofit$par
+plot(ofit, xlab="", main="Goodness of fit plot /w rootogram") #shows theoretical probabilities of gp distribution as red dots. Square roots of observed frequences = height of rectangle bars. Bars closely align w/ horizontal axis = good fit
+```
+* Gamma-poisson distribution is also known as the "negative binomial distribution/Negative binomial"
+  * Formula for equation is similar to binomial distribution
+  * Gamma-Poisson is more defining of the underlying principles
+  * <mark style='background-color:yellow'>This is a discrete distribution</mark>
+    * Only takes values on natural numbers (but gamma distribution by itself works on all positives)
+  * Probability distribution formula 
+\begin{equation}
+\text{P}(K=k)=\left(\begin{array}{c}k+a-1\\k\end{array}\right) \, p^a \, (1-p)^k,
+\tag{4.8}
+\end{equation}
+
+* Formula depends on 2 parameters (a elements of the real+ve) & (p elements of [0,1])
+  * The two parameters can be expressed by mean(mu) = pa/(1-p) & parameter called dispersion (a=1/a)
+    * Varience of distribution depends on these parameters (varience = mu+(a*mu<sup>2</sup>))
 
 * **
 <p id="6"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -116,6 +794,24 @@ oneFlip <- function(fl, mean1=1, mean2=3, sd1=0.5, sd2=0.5){ #Sqrt var(0.25) = 0
 *Run* = *Ctrl+Shift+Enter*  
 *Insert Chunk* =*Ctrl+Alt+I*  
 *Preview*=*Ctrl+Shift+K*
+
+```{r}
+#99 percentile for normal data 
+
+#sampleMean <- 
+#sd <- 
+#sampleSizeN <- 15
+#error <- qnorm(0.99)*sd/sqrt(sampleSizeN)
+#left <- SampleMean-error
+#right <- SampleMean+error
+```
+
+
+* **Bivariate normal distribution**
+  * Regular normal distribution = one random variable(x)
+  * Bivariate normal distribution = 2 independent random variables(X & Y)
+    * Normally distributed when both added together
+    * 3D bell-curve
 
 * **Dimensionality**
   * In statistics, how many attributes a dataset has
@@ -132,8 +828,8 @@ oneFlip <- function(fl, mean1=1, mean2=3, sd1=0.5, sd2=0.5){ #Sqrt var(0.25) = 0
       * Increase dimensions added to dataset = more difficult to predict quantities
       * **each added variable = exponential decrease in prediction power**
     * ex) Predict location of bacteria in 25cm<sup>2</sup> petri dish
-      * variable 1 = (2D dish)@25cm<sup>2</sup>
-      * add variable 2 = (3D beaker)@125cm<sup>3</sup>
+      * variable 1 = (2D dish)@ 25cm<sup>2</sup>
+      * add variable 2 = (3D beaker)@ 125cm<sup>3</sup>
       * note exponent increase
         * Increase computational burden -> harder to predict location
     * Statistical dimensionality curse
@@ -232,6 +928,108 @@ oneFlip <- function(fl, mean1=1, mean2=3, sd1=0.5, sd2=0.5){ #Sqrt var(0.25) = 0
       * Uses calculus integration & conditional probabilities
   * Limitations of EM
     * Slow, prefers data w/ low missing data & low dimensionality (E-step is rate limiting)
+
+* **Emperical Distribution Function (ECDF)**
+  * Same thing as a cumulative distribution function (CDF) -> both are probability models for data
+    * But the CDF is a hypothetical model of distribution
+    * ECDF models are empirical(observed data)
+      * ECDF is probability distribution when sampling from sample instead of the population
+      * ex) Experimental observed data x1, x2,...,xn -> ECDF gives fraction of sample observations ≤ a value of x
+      * ex) Order statistics set of counts y1 > y2 > ... > yn from observed random sample - can use ECDF
+    * The 1 in the formula is actually an I, where I = indicator function
+* **Bootstrap**
+  * Bootstrapping sample = smaller sample that is "bootstrapped" from larger sample
+  * This is a type of resampling which generates a large number of smaller samples of the same size being repeatedly drawn from original sample (_With replacement_)
+    * resamples can have the same observation repeated in a single smaller sample set due to sampling w/ replacement
+  * **All the iterations of resampling generates a bootstrap statistic which is compiled into a bootstrap distribution**
+  * Bootstrap based on law of large numbers = if you sample over & over then your data should approximate ture population data
+  * Note
+    * emperical bootstrap sample is drawn from observations (nonparametric)
+    * parametric bootstrap sample is drawn from parameterized distribtion (ex) normal)
+  * Why Resample
+    * Want to draw large, non-repeated samples from population (ideally) to create a _sampling distribution_ for statistic 
+      * problem = may be limited to one sample 
+      * solution = sample can serve as a mini population where repeated small samples are drawn w/ repetition iteratively
+        * bootstrapping is a good approximation for population parameters
+  * Procedure
+    1. Resample dataset x times
+    2. Find summary statistic (bootstrap statistic) for each x samples
+    3. Estimate sd for bootstrap statistic using sd of bootstrap distribution
+  * Notation
+    * B = number of bootstrap resampling
+    * x1* = same as x1 but distinguishes between sampled data vs original data
+    * \* next to a statistic (s* or x*) means statistic is calculated using resampling
+    * Bootstrap statistic sometimes denoted as T, T*<sub>b</b> is the B<sup>th</sup> bootstrap sample
+  * Bootstrap Percentile Method
+    * Calcualte confidence intervals for bootstrapped samples
+    * Simple method, certain % is trimmed from lower & upper end of the sample statistic(ex) mean of sd)
+      * trimmed number depends on confidence interval
+      * ex) 90% CI means a 100%-90%=10% trim (trim 5% from upper & lower ends)
+      * _Another method -> get 90% CI by taking lower bound 5% & upper bound 95% quantiles_ of the B replication T1,T2,...,TB
+      * Complicated method -> Bias-corrected & accelerated BCa method
+        * Corrects for skewness in model
+        * Others = Rubin's Bayesian extension & DiCiccio+Efron's ABC method
+     * Thus = trimmed range for the statistic of the CI for the population parameter of interest
+
+    
+![](https://www.statisticshowto.datasciencecentral.com/wp-content/uploads/2016/10/bootstrap-sample.png)
+
+* **Confidence Intervals**
+  * The uncertainty to any statistic (piece of data from a portion of a population - ex) look at part of data set = statistic)
+  * CI often used w/ margin of error -> tells how confident that <u>results of sample </u> reflects results if collected from entire population
+  * Confidence levels expressed in %
+    * Interprets to if you repeat an experiment iteratively, then % of times will match results obtained from a population 
+    * Statistic vs Parameter
+       * Parameter = all information, Statistic = partial information
+       
+* **Laplace Distribution (AKA double exponential distribution)**
+  * Continuous probability distribution
+    * Unimodal & symmetrical like normal distribution
+    * Has a sharper peak vs normal distribution
+  * <u>Distribution of difference between two independent random variables w/ identical exponential distributions</u>
+    * Used to model heavy tails or if data has a higher peak vs normal distribution
+  * Laplace distribution is a result of 2 exponential distributions
+    * one +ve
+    * Other -ve
+  * Equation
+    * μ = any real number, the location parameter
+      * Location parameter tells where graph is located (Where on the horizontal axis centers the graph, relative to normal distribution model)
+         * ex) normal distribution is centered at 0, so parameter=5 -> center graph 5 units to right of 0
+    * b = must be >0, the scale parameter (AKA diversity)
+      * Scale parameter used w/ location parameters to determine shape & location of a distribution
+        * Scale stretches/squeezes a graph
+        * ex) Scale of 3 = stretches curve, scale of 1/3 = narrows curve
+        * Scale = standard deviation σ -> Only true for normal distribution
+          * In other distributions, scale=/= sd
+        * Scale rules
+          * larger scale parameter = more spread distribution, smaller scale parameter = more compressed distribution
+          * Scale paramter = 0 -> single vertical line at 0 (of a normal distribution - the mean)
+          * Scale parameter = 0-1 -> horizontal squeeze on distribution
+          * Scale parameter = 1 -> no change
+          * Scale parameter >1 -> horizontal stretch on distribution
+          
+![probability density function of Laplace](https://www.statisticshowto.datasciencecentral.com/wp-content/uploads/2015/09/laplace-pdf.png)
+
+* **Gamma Distribution** 
+  * Right-skewed, continous probability distributions
+  * Useful for things w/ natural min of 0
+    * ex) Poisson Processes
+  * Probability distribution function
+    * X = continous random variable  
+    ![](https://www.statisticshowto.datasciencecentral.com/wp-content/uploads/2014/01/pdf.png)
+  * Probability distribution function cont.
+    * Γ(x) = the gamma function
+    * α = The shape parameter
+      * number of events waiting for (any +ve number, except integers)
+    * β (AKA θ)  = rate parameter (reciprocal of scale parameter)
+      * Mean waiting time for first event  
+    ![](https://www.statisticshowto.datasciencecentral.com/wp-content/uploads/2016/09/gf-1.png)
+  * α & b >1
+  * α=1 -> becomes exponential distribution
+  * β=1 -> standard gamma distribution
+  * If α(# events) unchanged but β(mean time between events) increases -> shifts graph rightwards (increase mean waiting time)
+    * If opposite, then graph also shifts to right (α approach inf., gamma distribution matches normal distribution)
+
 
 </body>
   
