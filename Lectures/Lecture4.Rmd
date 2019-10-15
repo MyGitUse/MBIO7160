@@ -14,6 +14,8 @@ library(mosaics)
 library(HistData)
 library(bootstrap)
 library(vcd)
+library(ggbeeswarm)
+library(flexmix)
 ```
 
 
@@ -84,7 +86,7 @@ library(vcd)
 
 * **
 <p id="3"><b><font size="5">Finite Mixtures</b></font><a href="#0"><sup>Return</sup></a></p>
-* Simple examples & computer experiments
+### Simple examples & computer experiments
   * ex) mixture model w/ 2 equal-sized components
     * Decompose generating process into steps
 * Step 1
@@ -229,7 +231,7 @@ ggplot(mystery, aes(x = values4.4, fill=coinflips4.4)) +
 * Both methods of showing overlapping distributions utilize `confilips` column of TRUE/FALSE to separate components/groups by colour
   * In real data, this would be missing information
   
-* Discover hidden groups labels ("black box")
+### Discover hidden groups labels ("black box")
   * Use **expectation-maximizatiom (EM) algorithm** - infers hidden groups (classes) mixed in dataset
     * EM algorithm is a iterative procedure  between the following:
       1. Infers known probability for each observation in a group/component & estimates distribution parameters of groups/components (forward)
@@ -379,7 +381,7 @@ paste(mclust$loglik, "when loglikelihood")
     * Consider several models at once to see which is better fit for data -> combine them into a weighted model
     * Weights provided by likelihoods of each model
     
-* Models for zero-inflated data
+### Models for zero-inflated data
   * Ecological & molecular data often in counts
     * Sometimes, contains counts of 0
     * Mixture models of data with zeros
@@ -395,7 +397,7 @@ f_{\text{zi}}(y) = \lambda \, \delta(y) + (1-\lambda) \, f_{\text{count}}(y),
     * This is due to <u>not finding certain members of a species</u> in some locations (this example)
 * The `pscl & zicounts` package has datasets & functions for working w/ zero-inflated counts
 
-* Ex) ChIP-Seq data
+### Ex) ChIP-Seq data
   * Sequences of DNA from chromatin immunoprecipitation -> map location along genomic DNA
   * example dataset from `mosaics` package= data measured on chromosome22 via ChIP-seq of antibodies for STAT1 protein & H3K4me3 histone modification to some cell line
     * `binTFBS` dataset = binding sites for one chromosome22
@@ -428,7 +430,7 @@ ggplot(bincts, aes(x=tagCount)) + scale_y_log10() +
   geom_histogram(binwidth=1, fill="forestgreen")
 ```
 
-* More than 2 components
+### More than 2 components
   * So far, mixtures w/ 2 components but what if more? 
     * ex) Weighing N=7000 nucleotides from mixtures of dNMPs (each type has different weight, all measured w/ same sd=3)
 ```{r}
@@ -472,7 +474,7 @@ ggplot(tibble(quadwts7k10=quadwts7k10), aes(x=quadwts7k10)) +
 means <- c(331,307,347,322)
 sd <- c(3, 3, 3, 3)
 Q4.11<- tibble(
-  x=seq(270,400, length.out=1000),
+  x=seq(min(quadwts),max(quadwts), length.out=1000),
   f=0.12*dnorm(x, mean=means[1], sd=sd[1])+
     0.38*dnorm(x, mean=means[2], sd=sd[2]) +
     0.36*dnorm(x, mean=means[3], sd=sd[3]) +
@@ -641,9 +643,10 @@ c(N3=choose(n=5,k=3), N15=choose(29,15))
 * Mixture models can be useful even if the goal is not to assign a label to each observation
   * "Allowing as many labels as observations"
   * **If #mixture components ≥ #observations = Infinite mixture**
-* Infinite mixture of normals
+### Infinite mixture of normals
   * ex) Create a sample (w) from an exponential distribution
 ```{r}
+#note rexp() evaluates mean as 1/lambda where lambda=rate
 w <- rexp(10000, rate=1)
 ```
 * Now (w) will serve as variences of normal variables w/ mean(μ) - simulated via rnorm
@@ -681,7 +684,7 @@ Y = \sqrt{W} \cdot Z, \qquad W \sim Exp(1), \qquad Z \sim N(0,1).
 \tag{4.6}
 \end{equation}
 
-* Asymmetric Laplace
+### Asymmetric Laplace
   * Laplace distribution - variences of normal components depend on (W) -> means are unaffected
     * where (W) is generated from an exponential distribution
   * **Add the parameter (theta), which controls location/centers of the components**
@@ -718,7 +721,7 @@ E(Y ) = \theta + \mu \quad\quad\text{and}\quad\quad\text{var}(Y)=\sigma^2+\mu^2.
 * **Varience depends on the mean(mu), unless mu=0 (symmetric Laplace distribution)**
   * Mean-varience dependence is common in physical measurements (ex) microarray, fluorescence intensity, HTS read counts, etc)
 
-* Infinite Mixtures of Poisson Variables
+### Infinite Mixtures of Poisson Variables
   * Similar 2-level hieratchical model needed to model real-world count data 
     * Lower level -> simple Poisson & Binomial distributions can be used a building blocks
        * Problem = parameters may depdent on latent process
@@ -731,7 +734,7 @@ E(Y ) = \theta + \mu \quad\quad\text{and}\quad\quad\text{var}(Y)=\sigma^2+\mu^2.
   * Poisson mixtures also good in modelling
     * HTS data (ex) RNA seq)
 
-* Gamma distribution: two parameters (shape & scale)
+### Gamma distribution: two parameters (shape & scale)
   * Extension of one-parameter exponential distribution
   * This distribution has 2 oparameters -> more flexible
     * Useful bulding block for upper level hierarchical model
@@ -782,10 +785,240 @@ plot(ofit, xlab="", main="Goodness of fit plot /w rootogram") #shows theoretical
 * Formula depends on 2 parameters (a elements of the real+ve) & (p elements of [0,1])
   * The two parameters can be expressed by mean(mu) = pa/(1-p) & parameter called dispersion (a=1/a)
     * Varience of distribution depends on these parameters (varience = mu+(a*mu<sup>2</sup>))
+    
+![](http://web.stanford.edu/class/bios221/book/figure/chap5-mixtures-dgammapois-1.png)
 
+* Gamma-poisson distribution hierarchical model visualization 
+  * Top = density of gamma distribution w/ mean=50(black line) & var=30
+    * In one experimental replicate, a value of 60 is obtained (dashed blue line) -> latent variable
+  * Observed outcome distributed by Poisson distribution w/ rate parameter=60 (shown in middle graph)
+    * In one experiment, the outcome may have a value of 55 (green dashed line)
+  * If repeat these 2 random processes subsequently & many times -> outcomes distributed as bottom graph = gamma-Poisson distriubtion
+
+* Q) Analytical derivations
+* <mark style='background-color:red'> A) Skipped</mark>
+
+### Varience-stabilizing tranformations
+* Key issue to control when analyzing experimental data -> variability between replicates which should have the same underlying true value
+  * ex) See if there is any true differences between replicates/differing conditions
+* Data from hierarchical models in this chapter have very heterogenous variences -> problematic
+  * **Varience-stabilizing transformations** can help
+```{r}
+#ex) Series of Poisson variables w/ rates lambdas
+lambdas <- seq(100,900,by=100)
+simdat = lapply(lambdas, function(l) tibble(y = rpois(n = 40, lambda=l), lambda = l)) %>% bind_rows #output of lapply loop is a tibbles, one for each lambdas - the pipe operator uses the function bind_rows -> results in dataframe of all list elements stacked
+
+ggplot(simdat, aes(x=lambda, y=y)) +
+  geom_beeswarm(alpha=0.6, color="purple")
+ggplot(simdat, aes(x=lambda, y=sqrt(y))) +
+  geom_beeswarm(alpha=0.6, color="purple")
+```
+
+* The y-scaled graph shows **heteroscedasity = standard deviations(or varience) of dataset are different for different regions of data space** - note the shapes vary unless using the sqrt(y) scale
+  * Increase along x-axis w/ the mean(lambda)
+    * For Poisson distribution - know that the sd is the sqrt(mean) (different dependencies depending on data)
+  * Different variences is problematic if we want to apply later analysis techniques which assume variences are the same (ex) regression/stat test)
+  * In the above figures, the number of replicates in each beeswarm(40) is large
+    * but if we used fewer replicates, the heteroscedasity will be harder to see
+  * Once we do a sqrt(y) transformation in the above graph, this amkes the transformed variables have approximately the same varience
+
+```{r}
+# Use tranformation y->2srt(y) which gives varience = ~1
+
+summarise(group_by(simdat, lambda), sd(y), sd(2*sqrt(y)))
+```
+
+* Q) Repeat code above for `simdat` w/ replicates >40
+  * Can use gamma-Poisson distribution to generate gamma-Poisson variables(u) & plot 95% CI around mean
+    * This catches greater range of values for mean value(mu) w/o creating dense sequence (use geometric series mu+1=2mu)
+```{r}
+# A)
+muvalues <- 2^seq(0, 10, by=1)
+simgp <- lapply(muvalues, function(mu){
+  u = rnbinom(n=1e4, mu=mu, size=4)
+  tibble(mean=mean(u), sd=sd(u),
+         lower = quantile(u, 0.025),
+         upper = quantile(u, 0.975),
+         mu=mu)
+}) %>% bind_rows
+
+head(as.data.frame(simgp), 2)
+
+ggplot(simgp, aes(x=mu, y=mean, ymin=lower, ymax=upper)) +
+  geom_point() + geom_errorbar()
+```
+
+* Q) How to find transformation for data that stabilizes varience, similar to sqrt() for Poisson distributed data?
+  * A) Divide values corresponding to `mu[1]` (centered around `simgp$mean[1]`) by sd `simgp$sd[1]`
+    * & Values corresponding to `mu[2]` (centered around `simgp$mean[2]`) by sd `simgp$sd[2]`, etc..
+    * Resulting values have a sd(AKA varience) of 1
+      * Prevents defining 11 separate transformations -> can use single piecewise-lienar + continous function
+```{r}
+simgp <- mutate(simgp, slopes=1/sd, transf = cumsum(slopes*mean))
+
+ggplot(simgp, aes(x=mean, y=transf)) +
+  geom_point() + geom_line() + xlab("") + ggtitle("Piecewise-lienar function used to stabilize data varience")
+```
+
+* This function resembles sqrt(), in particular the lower end
+  * At the upper end, it looks more like a log
+* Mathematical method of this is done through calculus -> **delta method**
+  * <mark style='background-color:red'> Skipped </mark>
+  
 * **
-<p id="6"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
+<p id="6"><b><font size="5">Exercises</b></font><a href="#0"><sup>Return</sup></a></p>
 
+### Exercise 4.1
+  * Step-by-step EM algorithm
+    * Use example dataset `Myst.rds`
+    * First visualize the data via histogram
+      * The mixture model is two normal distributions w/ unknown means(component A) & sd(Component B)
+```{r}
+yvar <- readRDS(here("BookStuff", "data", "Myst.rds"))$yvar
+ggplot(tibble(yvar), aes(x=yvar)) + geom_histogram(binwidth=0.025)
+str(yvar)
+```
+
+* Next, randomly assigning "probability of membership" to each value in `yvar`
+  * For each groups (A & B)
+  * These "membership" values are between 0 & 1
+    * pA = probability from mixture component A
+    * pB = probability from mixture component B (1-pA)
+```{r}
+#note uniform distribution used to assign probability to normal 
+
+pA <- runif(length(yvar), min=0, max=1)
+pB <- 1-pA
+```
+
+* Setup housekeeping variables
+  * `iter` -> counts over iterations of EM algorithm
+  * `loglik` -> stores current log-likelihood
+  * `delta` -> stores change in log-likelihood from previous iteration to current
+  * Parameters `tolerance, min_iter, & max_iter` of EM algorithm
+```{r}
+iter <- 0
+loglik <- -Inf
+delta <- +Inf
+tolerance <- 1e-3
+min_iter <- 50 ; max_iter <- 1000
+```
+
+* Look at this code and answer the questions
+```{r}
+while((delta > tolerance) && (iter <= max_iter) || (iter < min_iter)) {
+  lambda = mean(pA)
+  muA = weighted.mean(yvar, pA)
+  muB = weighted.mean(yvar, pB)
+  sdA = sqrt(weighted.mean((yvar - muA)^2, pA))
+  sdB = sqrt(weighted.mean((yvar - muB)^2, pB))
+
+  phiA = dnorm(yvar, mean = muA, sd = sdA)
+  phiB = dnorm(yvar, mean = muB, sd = sdB)
+  
+  pA   = lambda * phiA
+  pB   = (1 - lambda) * phiB
+  ptot = pA + pB
+  pA   = pA / ptot
+  pB   = pB / ptot
+
+  loglikOld = loglik
+  loglik = sum(log(pA))
+  delta = abs(loglikOld - loglik)
+  iter = iter + 1
+}
+param = tibble(group = c("A","B"), mean = c(muA,muB), sd = c(sdA,sdB), loglik = loglik)
+param
+iter
+```
+
+1. Which lines correspond to the E-step, which to the M-step?
+  * The Expected-step is the intial guess of the parameters, which correspond to `lambda -> sdB`
+  * The Maximization-step is when the normal distribution is generated using the "expected parameters" through MLE of the components individually which corresponds to `phiA -> pB` 
+
+2. What does the M-step do, what does the E-step do?
+  * The E-step generates "expected values" which are initial guesses of the parameters
+    * In this question the parameters are:
+      * Lambda -> mean of simulated uniform probabilities for componentA
+      * MeanA & B -> weighted mean of our dataset `yvar` using weights as probabilities simulated from uniform 
+      * Standard deviationA & B -> weighted mean of our dataset `yvar` subtracted by weighted means(Mean A or B) using weights as probabilities simulated from uniform
+    * The M-step maximizes our estimates from the E-step by updating probability to include prior estimates
+      * Namely, the simulated probabilities are re-calculated by:
+        * pA for distribution A -> Lambda(which is calculated from previous probabilities) * normal distribution values which use estimated parameters
+        * pB for distribution B -> (1-Lambda) * normal distribution values which use estimated parameters
+        * Both of which is calculated as a proportion to form a new probability, cycled for the next iteration which updates estimated parameters
+
+3. What is the role of the algorithm arguments tolerance, miniter and maxiter?
+  * tolerance = is the minimum difference between log-likelihood estimates needed to loop(?)
+  * min_iter = is the minimum iterations allowed to loop
+  * max_iter = is the maximum iterations allowed to loop
+
+4. Why do we need to compute loglik?
+  * The `loglik` variable stores the current log-likelihood value of mixture model which estimates that the current parameters (lambda, mu, sd) are maximized to represent data
+    * the `loglik` value updates per iteration based upon sum(log(probabilities for component A)) which is changed per E-step iteration
+    * This allows us to calculate delta, which is the difference between the previous iteration loglikelihood vs current itertion loglikelihood
+      * Once delta becomes lower than the tolerance (ie) Previous iteration loglikelihood < current loglikelihood) that's an assumptuion  that the E & M-step converges and there is no benefit for further estimation
+
+5. Compare the result of what we are doing here to the output of the normalmixEM function from the mixtools package.
+
+```{r}
+mixtoolsQ <- normalmixEM(x=yvar, k=2, maxit=1000)
+paste(mixtoolsQ$mu, "these are the maximized mean estimates")
+paste(mixtoolsQ$sigma, "these are the maximized lambda estimates")
+paste(mixtoolsQ$loglik, "this is the MLE")
+```
+
+```{r}
+z <- Mclust(data <- yvar, G=2)
+z$parameters
+z$loglik
+```
+
+
+### Exercise 4.2
+  * Use QQ-plot to compare theoretical values of gamma-Poisson distirbution w/ parameters estimated by `ofit$par` to the data `gp`
+```{r}
+#lambda <- rgamma(1e4, shape=10, rate=3/2)
+#gp <- rpois(length(lambda), lambda = lambda)
+ofit$par
+
+qqplot(qnbinom(p=ppoints(1000), size=9.687737, prob=0.5933591), gp, main="",
+       xlab = "gamma-Poisson size=9.687, prob=0.593", asp=1, cex=0.5, pch=16)
+abline(a=0,b=1,col="red")
+```
+
+
+### Exercise 4.3
+* Mixture modeling examples for regession
+  * `flexmix` package allows us to simultaneously cluster + fit regression data
+    * M-step -> `FLXMglm` = `glm()` function
+
+```{r}
+# install.packages("flexmix")
+# Load example dataset 
+
+data("NPreg")
+```
+
+1. Plot the data and guess how the points were generated 
+```{r}
+head(NPreg, 2) #see the labels within the dataset
+ggplot(NPreg, aes(x=x, y=yn)) + 
+  geom_point()
+```
+* Based on figure 4.27, it seems you can separate the points into a vertical parabola and linear line
+ * `?NPreg` states
+ 
+> A simple artificial regression example with 2 latent classes, one independent variable (uniform on [0,10]), and three dependent variables with Gaussian, Poisson and Binomial distribution, respectively.
+
+2. Fit a two-component mixture model using the command
+```{r}
+ml <- flexmix(yn~x + I(x^2), data=NPreg, k=2)
+ml
+```
+
+
+### Exercise 4.4
 
 * **
 
@@ -804,6 +1037,27 @@ plot(ofit, xlab="", main="Goodness of fit plot /w rootogram") #shows theoretical
 #error <- qnorm(0.99)*sd/sqrt(sampleSizeN)
 #left <- SampleMean-error
 #right <- SampleMean+error
+```
+
+
+```{r}
+#Test finite mixture - normals, what if mean is the same but variences differ?
+  # Means same = overlap, sd increase = distribution widens, opposite is true
+meansT <- c(3,3)
+variencesT <- c(0.25,0.25)
+mysteryT <- tibble(
+  coinflipsT = (rnorm(1000)>0.5),
+  valuesT =rnorm(length(coinflipsT), 
+                   mean=ifelse(coinflipsT, meansT[1], meansT[2]),
+                   sd=ifelse(coinflipsT, variencesT[1], variencesT[2])))
+brT <- with(mysteryT, seq(min(valuesT), max(valuesT), length.out=30)) #using dataframe - min(colname) to max(colname)
+
+ggplot(mysteryT, aes(x = valuesT)) +
+  geom_histogram(data = dplyr::filter(mysteryT, coinflipsT), #filter all true
+                 fill = "red", alpha = 0.2, breaks = brT) +
+  geom_histogram(data = dplyr::filter(mysteryT, !coinflipsT), #filter all false
+                 fill = "darkblue", alpha = 0.2, breaks = brT) 
+
 ```
 
 

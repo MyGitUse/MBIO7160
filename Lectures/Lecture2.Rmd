@@ -96,7 +96,7 @@ load(here("BookStuff", "data", "e100.RData"))
 e99 = e100[-which.max(e100)]
 ```
 
-* For this example, evaluate <mark style='background-color:lightblue'>**Goodness-of-fit** via visualization</mark>
+### For this example, evaluate <mark style='background-color:lightblue'>**Goodness-of-fit** via visualization</mark>
   * Step1: find which distribtuion would fit data best by visualizing data
     * <mark style='background-color:yellow'>Discrete data = barplot of frequencies (this data)</mark>
     * <mark style='background-color:yellow'>Continous data = Histogram</mark>
@@ -126,7 +126,7 @@ x1 <-  goodfit(x, "poisson")
 rootogram(x1, xlab="Levels" ,rect_gp=gpar(fill="green"), main="Poisson good-fit question")
 ```
 
-* lambda is the poission mean of theroretical distribution (estimated by sample mean)
+### lambda is the poission mean of theroretical distribution (estimated by sample mean)
   * Solution
     * Poisson is determined by one parameter, lambda AKA the poisson mean
       * If we assume the data follows a Poisson distribution based upon the rootogram, then need to estimate lambda because parameter is missing
@@ -339,7 +339,7 @@ plot(x=probs, y=likelihoodBinom, pch=16, xlab="Probability of Success", ylab="li
 probs[which.max(likelihoodBinom)] #in probs vector which is the closest max value matching likelihoodBinom vector
 ```
 
-* Likelihood for binomial distribution
+### Likelihood for binomial distribution
   * likelihood and probability are the same function - Have different interpretations
     * Probability to see set of values when given parameters (probability - one p)
     * Data is fixed but what parameter value will fit the data better (likeliness - test multi p)
@@ -376,9 +376,9 @@ plot(x=thetas, y=loglikelihoodBinom(thetas), xlab=expression(theta), ylab=expres
 * **
 
 <p id="7"><b><font size="5">More boxes:multinomial data</b></font><a href="#0"><sup>Return</sup></a></p>
-* DNA nucleotides - purines(A G) & pyrimidines (C T)
+### DNA nucleotides - purines(A G) & pyrimidines (C T)
   * Binomial model works for purines/pyrimidines as sets but not all together (ACGT) -> needs multinomial model
-* Nucleotide bias
+### Nucleotide bias
   * Estimation testing + Simulation
 ```{r}
 # Load set of seqs
@@ -504,7 +504,7 @@ abline(v=quantile(simulate1000tablesANDApplychiStat, probs=c(0.95, 0.99)), col=c
       * Example: Check how theory and simulation matches using the **goodness-of-fit tool (QQ) plot**
         * Compare 2 distributions, with different samples or same samples in different theoretical models - looking at histograms is not informative
         * **QQ plot finds quantiles of each distribution**
-* Quntiles & quantile-quantile plot
+### Quntiles & quantile-quantile plot
   * ex) previous chapter - used order statistics to order 100 sample values 
     * (Random sample size (n) -> order each random var from smallest exptected success to largest (x<sub>(1)</sub> < x<sub>(2)</sub>, x<sub>(n)</sub>))
     * Find 22th percentile 
@@ -533,6 +533,26 @@ abline(v=quantile(simulate1000tablesANDApplychiStat, probs=c(0.95, 0.99)), col=c
 #quantile(qchisq(p=qs, df=30), qs)
 ```
 
+* Q) Another aname for the 0.5 quantile?
+  * A) The median
+  
+* Q) How is the quantile computed for any number between 0 & 1 - include numbers not multiple of 1/n
+  * A) Check manual for `?quantile` and the arguement `type`
+    * Can make a QQ-plot
+```{r}
+# ex) plot quantiles of stimulate100tablesANDApplychiStat values
+qqplot(qchisq(ppoints(B), df=30), simulate1000tablesANDApplychiStat, main="",
+       xlab = expression(chi[nu==30]^2), asp=1, cex=0.5, pch=16)
+abline(a=0,b=1,col="red")
+```
+* As we can see, the simulate100tablesANDApplychiStat values fit well using the chisq (df=30) distribution
+  * Can now compure P-value (probability under the null hypothesis)
+    * Counts are distributed as multinomial w/ probabilities Pa=0.35, PC=0.35, PG=0.2, PT=0.3
+      * Observe a value as high as S1=70.1
+```{r}
+1-pchisq(S1, df=30)
+```
+* Small p-value indicates to reject the H0
 
 * **
 <p id="9"><b><font size="5">Chargaff’s Rule</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -582,7 +602,7 @@ abline(v=chfstat, lwd=2, col="blue") # Chargaff stat calculated using non-simula
 
 * <mark style='background-color:red'>Q) only looked at one-side (values smaller than observed) b/c.........</mark>
 
-* Two categorical variables 
+### Two categorical variables 
   * From ch1 until now, the data has been binomial (yes/no binary), or multinomuial (ATCG, genotypes)
   * What if we want to measure >=2 categorical variables on a set of subjects?
     * ex) Eye color + hair color
@@ -611,7 +631,7 @@ chisq.test(Deuteranopia)
   * Can also test w/ **Fisher's exact test (hypergeometric test)** - seen in CH10
     * Used to test for overrepresentation of certain types of genes
     
-* Hardy-Weinberg equilibrium (Special multinomial)
+### Hardy-Weinberg equilibrium (Special multinomial)
   *<mark style='background-color:yellow'>A multinomial with 3 possible levels via combinding two alleles (M & N)</mark>
     * p = overall frequency of allele M in population
     * q = N allele = 1-p
@@ -729,7 +749,7 @@ HWTernaryPlot(newgfHW[pops,],
 
 * Points stay the same but confidence regions have a wider spread b/c count frequencies decreased (but proportions remained)?
 
-* Concatenating several multinomials - sequence motif & logos
+### Concatenating several multinomials - sequence motif & logos
   * Kozak motif = seq occuring close to start codon(ATG) of coding ORF
     * nt position#1 to 5 left to ATG -> differs in nucleotide (not equally likely)
   * **Position weight matrix/Position-specific scoring matrix** = multinomial probabilities at every position of a seq
@@ -779,7 +799,7 @@ seqLogo(pwn, ic.scale=FALSE)
       * prior knowledge of data (before seeing data)= prior probability P(H)
       * after knowledge of data (after seeing data)= posterior probability P(H|D) - probability of H given that D was seen
         * posterior probability can be higher/lower than prior P(H) - depends on data D
-* Haplotypes
+### Haplotypes
   * foresnics - signatures from Y-chromosomes = haplotypes -> collection of alleles (DNA-seq variants) adjactent on a chromosome
     * Usually inherited together (low recombination separation) -> genetically linked
   * Ex) Looked for linked variants on Y-chromosome
@@ -817,7 +837,7 @@ f_{\alpha,\beta}(x) = \frac{x^{\alpha-1} (1-x)^{\beta-1}}{\text{B}(\alpha, \beta
                * Use this to update belief = posterior on <span class="math inline">\(\theta\)</span> also beta-shaped but w/ updated parameters  
            * Ex) B(10,30), B(20,60), B(50,150) -> alpha = 10,20,60 & beta=30,60,150 (priors)
 
-* Distrubtion of Y
+### Distrubtion of Y
   * For any single choice of <span class="math inline">\(\theta\)</span>, distribution Y follows the likelihood for binomial distribution formula
   
   \begin{equation}
@@ -841,7 +861,7 @@ y1 <- rbinom(length(rtheta), prob=rtheta, size = 300)  #alternative way without 
 hist(y1, breaks=50, col="orange", main="Marginal distribution of Y", xlab="")
 ```
 
-* Histogram of all theta probabilities, such that Y=40 (posterior distribution)
+### Histogram of all theta probabilities, such that Y=40 (posterior distribution)
   * Calculate posterior values of parameter <span class="math inline">\(\theta\)</span>
     * Condition the outcomes such that Y=40
       * Compare values to theoretical posterior (```densPostTheory```)
@@ -890,7 +910,7 @@ abline(a=0, b=1, col="blue") #a=intercept, b=slope
 
 * Q) Difference between ```thetaPostEmp``` vs ```thetaPostMC``` simulation? -> shape1/2 parameters whatever those mean (oh, alpha and beta parameters of beta distribution)
 
-* Posterior distribution is also a beta distribution
+### Posterior distribution is also a beta distribution
   * parameters a=90, b=610
     * Obtained via summing the prior parameters (a=50, b=350) w/ observed successes y=40 + observed failures (n-y=260)
        * n=220
@@ -968,7 +988,7 @@ thetas[which.max(denspost2)]
     * or prior's will change posterior if low dataset -> best to have high data for prior so it doesn't impact final results as much
     * low likelihood maxima (wider/less peaked) = variable posterior (highly influenced by prior)
     
-* Confidence Statements for proportion parameter
+### Confidence Statements for proportion parameter
   * Conclude where proportion lies in given data
     * Summary1: posterior credibility interval (Bayesian analog of confidence interval)
       * take 2.5 & 97.5th percentiles of posterior distribution P(L<=theta<=U) = 0.95
@@ -1079,7 +1099,7 @@ expplot(width(betweenmotifs), rate=1/mean(width(betweenmotifs)),labels="fitted e
 * Q) Why is there a slight deviation at the right tail (upper limit) of data?
   * Gap lengths in further positions less closely distributed??
   
-* Modeling in the case of dependencies
+### Modeling in the case of dependencies
   * nt seqs are often dependent - prob of seeing certain nt at position depends on surrounding seq
   * Dependency modelling using **Markov Chain**
     * ex) Try to find difference between CpG island & non-CpG island from chromosome

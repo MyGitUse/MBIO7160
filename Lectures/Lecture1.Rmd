@@ -514,7 +514,7 @@ Here, you can see that outcomes using equal probabilities don't have equal outco
 ```rmultinom(n = 8, prob = pvec, size = 1)``` vs ```rmultinom(n = 1, prob = pvec, size = 8)```  
 &emsp; size=1 represents 1 trial w/ n=8 observations/repeats (output =1 or 0), size=8 represents 8 trials in n=1 observation (sum of 1's per row of probabilities)
 
-* Simulating for power
+### Simulating for power
   * Monte Carlo for stimulation of multinomial distribution
   * ex) How big of a sample size is needed for my experiment?
     * **Power in statistics = probability of detecting something if present == True positive rate**
