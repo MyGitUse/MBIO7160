@@ -1061,6 +1061,31 @@ ggplot(mysteryT, aes(x = valuesT)) +
 ```
 
 
+```
+while (delta(change in log-likelihood) > tolerance & iter <= max_iter) or (iter < min_iter)
+then
+lambda = mean(probabilities of mixture A pA)
+meanA/B = weighted.mean(x=yvar, w=pA/B) 
+  #Interpretation - think of pA as the course syllabus mark breakdown & yvar is what you scored
+    # ex) pA = Midterms(30%), Final(60%), Assignments(10%)
+       # yvar = Scored 25% on midterm, 40% on final, and 8% on assignments
+       # weighted mean = ((30*25) + (60*40) + (10*8))/100 = 32.3%
+sdA/B = sqrt(weighted.mean((yvar- weighted meanA/B)^2, pA/B)
+
+phiA/B = dnorm(yvar, mean=weighted meanA/B, sd=sdA/B) #density function for normal distribution
+
+pA = lambda*phiA #mean * density values 
+pB = (1-lambda)*phiB
+ptotal = pA+pB
+pA/B = (pA/B)/pTotal
+
+OldloglikelihoodValue = loglik
+loglik = sum(log(pA))
+delta = abs(OldloglikelihoodValue-loglik) #change in loglikelihood
+iter = iter+1
+```
+
+
 * **Bivariate normal distribution**
   * Regular normal distribution = one random variable(x)
   * Bivariate normal distribution = 2 independent random variables(X & Y)
