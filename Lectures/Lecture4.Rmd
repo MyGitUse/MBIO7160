@@ -978,13 +978,19 @@ z$loglik
 ### Exercise 4.2
   * Use QQ-plot to compare theoretical values of gamma-Poisson distirbution w/ parameters estimated by `ofit$par` to the data `gp`
 ```{r}
+#Section 4.4.3 gamma distribution
+#rgamma(1e4, shape=2, rate=1/3)
 #lambda <- rgamma(1e4, shape=10, rate=3/2)
-#gp <- rpois(length(lambda), lambda = lambda)
+#gp <- rpois(length(lambda), lambda = lambda), where length = 1e4 & lambda = above set of generated lambda
 ofit$par
 
-qqplot(qnbinom(p=ppoints(1000), size=9.687737, prob=0.5933591), gp, main="",
+qqplot(qnbinom(p=ppoints(1e4), size=ofit$par[[1]], prob=ofit$par[[2]]), rgamma(1e4, shape=2, rate=1/3), main="",
        xlab = "gamma-Poisson size=9.687, prob=0.593", asp=1, cex=0.5, pch=16)
 abline(a=0,b=1,col="red")
+
+qqplot(qnbinom(p=ppoints(1e4), size=ofit$par[[1]], prob=ofit$par[[2]]), rgamma(1e4, shape=10, rate=3/2), main="",
+       xlab = "gamma-Poisson size=9.687, prob=0.593", asp=1, cex=0.5, pch=16)
+abline(a=0,b=1,col="blue")
 ```
 
 
@@ -1002,7 +1008,7 @@ data("NPreg")
 
 1. Plot the data and guess how the points were generated 
 ```{r}
-head(NPreg, 2) #see the labels within the dataset
+head(NPreg, 2) #see the labels within the dataset or names(NPreg)
 ggplot(NPreg, aes(x=x, y=yn)) + 
   geom_point()
 ```
@@ -1017,8 +1023,34 @@ ml <- flexmix(yn~x + I(x^2), data=NPreg, k=2)
 ml
 ```
 
+No clue what to do here
+
+
+3. Look at estimated parameters & make a truth table (True classes vs cluster membership)
+```{r}
+parameters(ml, component = 1)
+parameters(ml, component = 2)
+
+table(NPreg$class, clusters(ml)) #based upon chapter code - if we did NPreg$class and clusters(ml) separately and overlap the two vectors, we can see that the 1's will overlap between vectors 5 times
+
+summary(ml)
+```
+
+* Summary of `ml` shows the loglikelihood value, as well as the prior & posterior values of each component
+  * ratio = size/post
 
 ### Exercise 4.4
+
+* Plot based upon estimated classes (colour separation)
+
+```{r}
+# Used answer from chapter code
+NPreg = mutate(NPreg, gr = factor(class))
+ggplot(NPreg, aes(x = x, y = yn, group = gr)) +
+   geom_point(aes(colour = gr, shape = gr)) +
+   scale_colour_hue(l = 40, c = 180)
+```
+
 
 * **
 
@@ -1309,6 +1341,39 @@ iter = iter+1
   * If α(# events) unchanged but β(mean time between events) increases -> shifts graph rightwards (increase mean waiting time)
     * If opposite, then graph also shifts to right (α approach inf., gamma distribution matches normal distribution)
 
+* **Truth Table**
+  * From wiki
+  
+> A truth table is a mathematical table used in logic—specifically in connection with Boolean algebra, boolean functions, and propositional calculus—which sets out the functional values of logical expressions on each of their functional arguments, that is, for each combination of values taken by their logical variables (Enderton, 2001). In particular, truth tables can be used to show whether a propositional expression is true for all legitimate input values, that is, logically valid.  
+
+>A truth table has one column for each input variable (for example, P and Q), and one final column showing all of the possible results of the logical operation that the table represents (for example, P XOR Q). Each row of the truth table contains one possible configuration of the input variables (for instance, P=true Q=false), and the result of the operation for those values.
+
+* Each column represents different statements
+  * Initial statement, if an object is a ribbion then it's red
+  * Table 1
+    * ex) p q, where p= ribbion, q=red
+    * additional column p->q
+      * If ribbion is red (p->q true) means p true, q true
+      * If ribbion is blue (p->q false) means p true, q false
+      * If object is not ribbon but is red (p->q true because can't disprove) means p false, q true
+      * If object is not ribbon but is green (p->q true because can't disprove) means p false, q false
+      * Basically p->q is saying if p then q, interpreting to if p is a T then look for a T in the q column
+        * If p is not T, then p->q is automatically T (as in the last 2 cases)
+        * If p is T, then look at q
+          * if q = T then p->q T
+          * if q = F then p->q F
+    * an additional question to ask is if ~q then ~p
+      * Look at ~q column, if F then (if ~q then ~p) is automatically true
+        * If ~q is true, then look at ~p 
+          * If ~p T then true overall, if false then false overall
+  * Table 2 w/ columns p, q, ~p, ~pVq
+    * Column ~p or !p = opposite of p outputs (ex) p= T,T,F,F than !p = F,F,T,T)
+    * Column ~pVq means is !p true OR q true?
+      * If q = true OR !p = true then ~pVq = true
+  * Compare table 2 w/ table 1
+    * Specifically the p->q & ~pVq columns
+      * If identical then p->q is logically equivallent to ~pVq
+    
 
 </body>
   
