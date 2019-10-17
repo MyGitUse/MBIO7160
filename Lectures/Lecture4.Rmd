@@ -165,9 +165,11 @@ ggplot(fair, aes(x=values1)) +
   # aes(y=..density..) specifies vertical axis shows PROPORTION of counts
   # stat_function() superimposes a function on top of plot
 
-ggplot(filter(fair, cflips), aes(x=values1)) +
-  geom_histogram(aes(y=..density..), fill="purple", binwitdh=0.01) +
-  stat_function(fun=dnorm, args=list(mean=means[1], sd=variences[1]), color="red")
+ggplot(dplyr::filter(fair, cflips), aes(x = values1)) +
+   geom_histogram(aes(y = ..density..), fill = "purple",
+                  binwidth = 0.01) +
+   stat_function(fun = dnorm,
+          args = list(mean = means[1], sd = variences[1]), color = "red")
 ```
 
 * Density formula for all simulated normal `fair$values` is a sum of both densities (2 normal distribs)
@@ -195,7 +197,7 @@ ggplot(fairtheory, aes(x=x, y=f)) +
 * In this case, the two component distribution (2 normals) have low overlap
   * Shows two peaks = bimodal distribution
   * Many mixture models don't have a clear separation
-  
+
 * Q) Guess the mean parameter of two normal distributions which overlap and have the same variences
   * Use trial and error simulation of mixtures to see if the distributions overlap
 ```{r}
@@ -274,6 +276,8 @@ for(PP in c(1/8, 1/4)){
 * Interpretation of contingency table above
   * There are two tables, the top(K) represents when PP=1/8 & bottom(K) represents when PP=1/4 (where PP= probability of picking first unfair coin w/ heads p1=0.125, 1-PP = 2nd unfair coin w/ heads p2=0.25)
   * In the first table, the count of getting no heads in 100 trials is 60, 1heads/100 trials is 32 and 2heads/100 trials is 8
+
+* Since the contingency tables are similar, it would be hard to distinguish between distributions
   
 * This question shows the issue of **indentifiability** -> same observed values can have several explainantions of values (p1, p2, PP)
   * <mark style='background-color:yellow'>Occurs when too much degrees of freedom in parameters</mark> 
@@ -312,18 +316,19 @@ group_by(duy, u) %>% summarise(mean(y)) #group the duy tibble at u column (group
   * Write out the log(likelihood)
     * what prevents solving for MLE here?
 * A) CH19 shows computation of likelihood of finite mixture models
-  * To estimate a mixture model, need weighted MLE - weights given by posterior label probabilities
+  * To estimate a mixture model, we need weighted MLE - weights given by posterior label probabilities
   * repetition depends on parameters estimated
-  * Don't know lables u or mixture proportion λ in real data
+  * We wouldn't know labels "u" or mixture proportion "λ" in real data
     * Need to have an inital guess for labels (u)
-    * Need to estiamte parameters
+    * Need to estimate parameters
     * Need iterations through EM algorithm - this updates "best guess" for group labels & parameters
-      * eventually, this effect plateaus into no improvement per cycling
-  * Can replace the "hard labels" for u observations (groups 1 & 2)
+      * eventually, this effect plateaus into no improvement per cycling (Indicated by the marginal likelihood)
+        * **Marginal likelihood** for observed y = sum overall possible values of (u) of the densities at (y,u)
+* Can replace the "hard labels" for u observations (groups 1 & 2)
     * via group membership probabilities summing to 1
     * Probability p(u,x|θ) is the weight/participation of observed x in likelihood function
-      * AKA soft averaging - make weighted averages where each pts probabilities used as weight. Don't have to decide if the point belongs to one group or another
-  * **Marginal likelihood** for observed y = sum overall possible values of (u) of the densities at (y,u)
+      * AKA soft averaging - make weighted averages where probabilities of each point is used as weight. Thus, we don't have to decide if the point belongs to one group or another
+
   
   \begin{equation*}
 \text{marglike}(\theta;y)=f(y\,|\,\theta)=\sum_u f(y,u\,|\,\theta) \,\text{d}u.
@@ -371,7 +376,7 @@ mclust$parameters
 paste(mclust$loglik, "when loglikelihood")
 ```
 
-* 2 different packages, but very similar outcome due to convergence of iterations
+* 2 different packages, but very similar outcome due to convergence of maximum likelihood
 
 * EM algorithm is very instructive
   * Show that hard questions w/ many unknowns can be solved via alternating by solving simpler problems
@@ -390,7 +395,7 @@ paste(mclust$loglik, "when loglikelihood")
 f_{\text{zi}}(y) = \lambda \, \delta(y) + (1-\lambda) \, f_{\text{count}}(y),
 \end{equation*}
 
-* Where Deltha = Dirac delta function -> represents prob distribution w/ mass at 0
+* Where Delta = Dirac delta function -> represents probability distribution w/ mass at 0
   * 0's in first mixture component (delta) = "structural" for this example
     * This is due to <u>certain species not living in certain habitats</u> (this example)
   * 0's in the second component (fcount)
@@ -438,7 +443,7 @@ masses <- c(A=331, C=307, G=347, T=322)
 probs <- c(A=0.12, C=0.38, G=0.36, T=0.14)
 N <- 7000
 sd <- 3
-nuclt <- sample(x=length(probs), size=N, replace=TRUE, prob=probs)
+nuclt <- sample(x=length(probs), size=N, replace=TRUE, prob=probs) #where length of probs = 4 
 quadwts <- rnorm(length(nuclt), mean=masses[nuclt], sd=sd)
 ggplot(tibble(quadwts=quadwts), aes(x=quadwts)) + 
   geom_histogram(bins=100, fill="purple")
@@ -1092,6 +1097,12 @@ ggplot(mysteryT, aes(x = valuesT)) +
 
 ```
 
+```{r}
+ggplot(dplyr::filter(tibble(value=values)), aes(x=values)) +
+  geom_histogram(aes(y=..density..), fill="purple", binwidth=0.01) +
+  stat_function(fun=dnorm, args=list(mean=means[1], sd=variences[1]), color="red") +
+  stat_function(fun=dnorm, args=list(mean=means[2], sd=variences[2]), color="red")
+```
 
 ```
 while (delta(change in log-likelihood) > tolerance & iter <= max_iter) or (iter < min_iter)
@@ -1273,7 +1284,7 @@ iter = iter+1
     * Bootstrap statistic sometimes denoted as T, T*<sub>b</b> is the B<sup>th</sup> bootstrap sample
   * Bootstrap Percentile Method
     * Calcualte confidence intervals for bootstrapped samples
-    * Simple method, certain % is trimmed from lower & upper end of the sample statistic(ex) mean of sd)
+    * Simple method, certain % is trimmed from lower & upper end of the sample statistic(ex) mean or sd)
       * trimmed number depends on confidence interval
       * ex) 90% CI means a 100%-90%=10% trim (trim 5% from upper & lower ends)
       * _Another method -> get 90% CI by taking lower bound 5% & upper bound 95% quantiles_ of the B replication T1,T2,...,TB
