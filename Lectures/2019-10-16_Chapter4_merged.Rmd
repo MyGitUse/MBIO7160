@@ -68,12 +68,10 @@ library(vcd)
 * ChIP-Seq  
 * Microbiome  
 
-What do these types of data have in common? Can you think of any other types of data that might be considered a mixture?  
-
-<center><button data-toggle="collapse" data-target="#demo">Spoiler</button>
+<center><button data-toggle="collapse" data-target="#demo"><b>Question</b></button></center>
 <div id="demo" class="collapse">
-Answer?
-</div></center>
+<mark style='background-color:red'>What do these types of data have in common? Can you think of any other types of data that might be considered a mixture?</mark>  
+</div>
 
 <p id="2"><b><font size="5">What is mixture data?</b></font><a href="#0"><sup>Return</sup></a></p>   
 Heterogeneity (diversity) is a problem with biological data analysis. In other words, biological data often do not follow a unimodal distribution. This requires us to look at the data as a mixture of a few (or many) components. We call this type of data  _*mixture data*_. 
@@ -211,6 +209,9 @@ ggplot(dplyr::filter(tibble(values_1000000), coinflips_1000000), aes(x = values_
 
 It looks pretty darn close to the normal distribution with y-axis of counts.  
 
+<center><button data-toggle="collapse" data-target="#gdf"><b>General Density Formula</b></button></center>
+<div id="gdf" class="gdf">
+
 Thus, we can write a general formula for density of any mixture model by suming the densities of individual normal distributions (proportionately).   
 
 > \begin{equation}
@@ -222,6 +223,8 @@ Where:
 
 * ϕ1 is the density of normal N(μ1=1,σ<sup>2</sup>=0.25) - In this case TRUE/Heads
 * ϕ2 is the density of normal N(μ1=3,σ<sup>2</sup>=0.25) - In this case FALSE/Tails
+
+</div>
 
 Now, what if we wanted to just visualize a theoretical density of the mixture without generating Heads/Tails and calculating proportion results from a coinflip?
 
@@ -314,8 +317,150 @@ variable, called U.
     * Iteration path **depends on starting point** but always end up at the same end point (assuming 1 end point)
     * Good practice to repeat procedure several times from different start points to see if same answer received
   * (Better defined by breaking up the EM algorithm in excercise 4.1)
+
+<p id="EX4"><center><button data-toggle="collapse" data-target="#ex41"><b>Exercise 4.1 (the EM algorithm)</b></button></center></p>
+<div id="ex41" class="collapse"><font color="purple">
+
+
+```{r Q1, eval=TRUE}
+#load in data
+yvar = readRDS(here("bookStuff", "data", "Myst.rds"))$yvar
+#view data in histogram
+ggplot(tibble(yvar), aes(x = yvar)) + geom_histogram(binwidth=0.025)
+#explore the structure of the data
+str(yvar)
+```
+```{r eval=TRUE}
+
+#we want to model the data in yvar as a mixture of 2 normal #distributions with components A and B 
+
+#create a random uniform distribution equal to the length of yvar (1000) with each entry equal to the probability of that data point belonging to component
+pA = runif(length(yvar))
+#make another numeric vector with probabilities of belonging to pB
+pB = 1 - pA
+
+#counter for iterations of the EM algorithm
+iter = 0
+#stores the current log-likelihood
+loglik = -Inf
+#stores the change in the log-likelihood from the previous iteration to the current one
+delta = +Inf
+tolerance = 1e-3
+miniter = 50; maxiter = 1000
+
+#run this loop until delta converges upon tolerance
+#continuing running while inter is less than or equal to 1000 or less than 50 
+while((delta > tolerance) && (iter <= maxiter) || (iter < miniter)) {
+  #THIS IS THE E-STEP
+  #lamda is the mixture fraction 
+  lambda = mean(pA)
+  #set mean for component A
+  muA = weighted.mean(yvar, pA)
+  #set mean for component B
+  muB = weighted.mean(yvar, pB)
+  #calculate standard deviation for component A
+  sdA = sqrt(weighted.mean((yvar - muA)^2, pA))
+  #calculate standard deviation for component B
+  sdB = sqrt(weighted.mean((yvar - muB)^2, pB))
   
-<mark style='background-color:red'>Should we present excercise4.1 here?</mark>
+  #THIS IS THE M-STEP
+  #the density of group A
+  phiA = dnorm(yvar, mean = muA, sd = sdA)
+  #the density of group B
+  phiB = dnorm(yvar, mean = muB, sd = sdB)
+  #formula for density fraction made up by A
+  pA   = lambda * phiA
+  #formula for density fraction made up by B
+  pB   = (1 - lambda) * phiB
+  #formula for density of mixture
+  ptot = pA + pB
+  
+  pA   = pA / ptot
+  pB   = pB / ptot
+
+  loglikOld = loglik
+  loglik = sum(log(pA))
+  delta = abs(loglikOld - loglik)
+  iter = iter + 1
+}
+param = tibble(group = c("A","B"), mean = c(muA,muB), sd = c(sdA,sdB))
+param
+iter
+```
+
+<b><center>Question: Which lines correspond to the E-step, which to the M-step?  </center></b>
+
+The basic outline of the EM procedure is as follows:  
+(found on https://www.statisticshowto.datasciencecentral.com/em-algorithm-expectation-maximization/)
+
+1. An initial guess is made for the model’s parameters and a probability distribution is created. This is sometimes called the “E-Step” for the “Expected” distribution.
+2. Newly observed data is fed into the model.
+3. The probability distribution from the E-step is tweaked to include the new data. This is sometimes called the “M-step.”
+4. Steps 2 through 4 are repeated until stability (i.e. a distribution that doesn’t change from the E-step to the M-step) is reached.
+
+The E-step includes the lines where we set the probability that each data point belongs to component A or B as well as the lines where we calculate lamda, muA, muB, sdA, and sdB. This step incorporates pA and pB which were revised in the M-Step.
+
+>  lambda = mean(pA)  
+>  muA = weighted.mean(yvar, pA)  
+>  muB = weighted.mean(yvar, pB)
+>  sdA = sqrt(weighted.mean((yvar - muA)^2, pA))  
+>  sdB = sqrt(weighted.mean((yvar - muB)^2, pB))  
+
+The maximum-likelihood estimation (MLE) is used to estimate the means for each group based on group density and mixture fraction and can be split into 2 equations and solved separately. The M-step includes:
+ 
+>  phiA = dnorm(yvar, mean = muA, sd = sdA)  
+>  phiB = dnorm(yvar, mean = muB, sd = sdB)  
+>  pA   = lambda * phiA  
+>  pB   = (1 - lambda) * phiB  
+>  ptot = pA + pB  
+>    
+>  pA   = pA / ptot  
+>  pB   = pB / ptot  
+
+1. What does the M-step do, what does the E-step do?
+
+The M-step takes the "unknown" parameters generated from the E step and uses them to modify/update the "known" parameters (probability of belong to group A or B).
+
+The E-step takes our known parameters (probability of belong to group A or B) and uses these parameters to generate the missing (mean, standard deviation) for our function.
+
+2. What is the role of the algorithm arguments tolerance, miniter and maxiter?
+
+Tolerance represents the minimum difference between log-likelihood estimates needed to loop. 
+Miniter is the minimum number of times that we must interate between the E and M steps.
+Maxiter is the maximum number of times we are allowed to interate between our E and M steps.
+
+Class question: How do you think the authors determined tolerance? Is it always the same? Does it change? Is it related to a p-value? Thoughts?
+
+3. Why do we need to compute loglik?
+
+We need to compute loglik so that we can observe how likely we our converging between our "guessed" model of data and the best fit of our parameters. When the difference between loglik and loglikOld is very small, this suggests that we have reached our maximum and have found our best model for the data.  
+
+ * The `loglik` variable stores the current log-likelihood value of mixture model which estimates that the current parameters (lambda, mu, sd) are maximized to represent data
+    * the `loglik` value updates per iteration based upon sum(log(probabilities for component A)) which is changed per E-step iteration
+    * This allows us to calculate delta, which is the difference between the previous iteration loglikelihood vs current itertion loglikelihood
+      * Once delta becomes lower than the tolerance (ie) Previous iteration loglikelihood < current loglikelihood) that's an assumptuion  that the E & M-step converges and there is no benefit for further estimation
+
+
+5. Compare the results of what we are doing to the output of the normalmixEM function from the mixtools package:
+
+```{re mixtoolsQ, eval=T}
+mixtoolsQ <- normalmixEM(x=yvar, k=2, maxit=1000)
+paste(mixtoolsQ$mu, "these are the maximized mean estimates")
+paste(mixtoolsQ$sigma, "these are the maximized lambda estimates")
+paste(mixtoolsQ$loglik, "this is the MLE")
+```
+
+```{r mclustQ, eval=T}
+mclusttest <- Mclust(yvar, G=2)
+summary(mclusttest)
+mclusttest$parameters
+```
+
+These paramters are close to the parameters of the function we just generated.
+<center><button data-toggle="collapse" data-target="#ex41"><a href="#EX4">Click here to close Excercise 4.1</button></center></a>
+</div></font>
+
+
   
 How would this work if applied to two unfair coins with p1=0.125(Coin1), p2=0.25(Coin2), probability of of picking coin 1 equal to π and probability of picking coin 2 equal to 1-π when we toss the coin twice and record the number of heads K?
 
@@ -337,14 +482,20 @@ for (pi in c(1/8, 1/4)) {
  
 These contingecy tables look similar. Thus, it would be hard to identify the distribution parameters based on this data. This illustrates the issue  **indentifiability** -> same observed values can have several explainantions of values (p1, p2, π). This occurs when there are too many degrees of freedom in the parameters (df = n-1)
 
-> **Why do we subtract 1 from the number of items?**  
-&emsp; Another way to look at degrees of freedom is that they are the number of values that are free to vary in a data set. What does “free to vary” mean? Here’s an example using the mean (average):  
+<center><button data-toggle="collapse" data-target="#nminus1"><b>Why do we subtract 1 from the number of items?  </b></button></center>
+<div id="nminus1" class="collapse">
+> &emsp; Another way to look at degrees of freedom is that they are the number of values that are free to vary in a data set. What does “free to vary” mean? Here’s an example using the mean (average):  
 &emsp;&emsp; Q. Pick a set of numbers that have a mean (average) of 10.  
 &emsp;&emsp; A. Some sets of numbers you might pick: 9, 10, 11 or 8, 10, 12 or 5, 10, 15.
 Once you have chosen the first two numbers in the set, the third is fixed. In other words, you can’t choose the third item in the set. The only numbers that are free to vary are the first two. You can pick 9 + 10 or 5 + 15, but once you’ve made that decision you must choose a particular number that will give you the mean you are looking for. So degrees of freedom for a set of three numbers is TWO.  
 &emsp; For example: if you wanted to find a confidence interval for a sample, degrees of freedom is n – 1. “N’ can also be the number of classes or categories. 
 
+</div>
+
+<center><button data-toggle="collapse" data-target="#Q1"><b>Question</b></button></center>
+<div id="Q1" class="collapse">
 <mark style='background-color:red'>The follow question states means are unknown but then procceeds to provide mean of -0.5 & 1.5. Does y indicate estimated means, and if so where does mus come from?</mark>
+</div>
 
 Let's look at another example of a mixture of two normals with mean parameters unknown and standard deviation equal to 1 (μ1=?,μ2=?,σ1=σ2=1).
 
@@ -364,6 +515,8 @@ head(duy)
 
 Notice in previous the `coinflips` example, the results of the vector are logical (TRUE/FALSE). Here, since the means are unknown the values are 1 or 2.  
 
+<center><button data-toggle="collapse" data-target="#MLE"><b>MLE Equation</b></button></center>
+<div id="MLE" class="collapse">
 Since we know the labels "u" (1 or 2), we can estimate the means by using seperate ML equations for each group.
 
 * If we know the labels (u), we can estimate means using separate MLEs for each group.
@@ -377,11 +530,15 @@ f(y, u \,|\, \theta) =
 \tag{4.3}
 \end{equation}
 
+</div>
+
 ```{r eval=TRUE}
 #group the tibble `duy` at "u" column (group by 1's or 2's), then summarize the mean of the "y" column within group
 duy %>% group_by(u) %>% summarise(mean(y))
 ```
 
+<center><button data-toggle="collapse" data-target="#MLEexp"><b>Explaination of MLE</b></button></center>
+<div id="MLEexp" class="collapse">
 Suppose we knew the mixing proportion was λ=1/2, so that we can calculate the so that the density by suming the denisity of the mixture proportionately. What prevents us from solving for the MLE explicitly here?
 
 * **NOTE** - think back to this equation
@@ -430,6 +587,8 @@ E^*(\theta)=E_{\theta^*,Y}[\log p(u,y\,|\,\theta^*)]=\sum_u p(u\,|\,y ,\theta^*)
   * Iterations through E & M repeated until E* increases are small -> indicates plateauing likelihood = reaching local max
     * Iteration path _depends on starting point_ but always end up at the same end point (assuming 1 end point)
     * Good practice to repeat procedure several times from different start points to see if same answer received
+</div>
+
 
 Several R packages provide EM implementations, including `mclust`, `EMcluster` and `EMMIXskew`. Choose one and run the EM function several times with different starting values. Then use the function normalmixEM from the mixtools package to compare the outputs.  
 
@@ -466,9 +625,12 @@ The EM algorithm is very informative:
 Biological data often comes in counts. For example, how many reads from each bacterial species were observed in a given RNA-seq sample?  
 
 Such data can often be seen as a mixture of two scenarios: 
+
 * If the species is not present, the count is zero.
 * If the species is present, the number of individuals we observe varies, with a random sampling distribution and this distribution may also include zeros.  
 
+<center><button data-toggle="collapse" data-target="#infz"><b>Inflated Zeros Equation</b></button></center>
+<div id="infz" class="collapse">
 This can be represented by the following equation:
 
 \begin{equation*}
@@ -482,7 +644,7 @@ Where :
     * This is due to <u>certain species not living in certain habitats</u> (this example)
   * 0's in the second component (fcount)
     * This is due to <u>not finding certain members of a species</u> in some locations (this example)  
-
+</div>
 
 The R packages pscl and zicounts provide many examples and functions for working with zero inflated counts.  
 
@@ -515,7 +677,11 @@ ggplot(bincts, aes(x = tagCount)) + scale_y_log10() +
 
 ##estimate the proportion of bins with zero counts
 ```
+
+<center><button data-toggle="collapse" data-target="#Q2"><b>Question</b></button></center>
+<div id="Q2" class="collapse">
 <mark style='background-color:red'>Is this a significant number of zeros? The proportion of zeros in the data doesn't look significant based on the counts of other numbers (is this true - we're not sure).</mark>
+</div> 
  
 <p id="7"><b><font size="5">More than two components</b></font><a href="#0"><sup>Return</sup></a></p>
 
@@ -620,6 +786,8 @@ In general, the density of a probability distribution is the derivative (if it e
 
 Statistics of our sample, such as the mean, minimum or median, can also be written as a function of the ECDF.  
 
+<center><button data-toggle="collapse" data-target="#ECDF"><b>Emperical cumulative distribution function (ECDF)</b></button></center>
+<div id="ECDF" class="collapse">
 The **emperical cumulative distribution function (ECDF)** for sample of size n:  
 
 \begin{equation}
@@ -634,6 +802,8 @@ ECDF plots allow us to write density of sample as:
 \tag{4.5}
 \end{equation}
 
+</div>
+
 * ECDF is a probability model for emperical data when sampling from a sample instead of the entire population
 
 The true sampling distribution of a statistic ^τ is often hard to know as it requires many different data samples from which to compute the statistic.
@@ -645,6 +815,7 @@ Different samples from F lead to different data, and so to different values of t
 We reuse the data (by considering it a mixture distribution of δs) to create new “datasets” by taking samples and looking at the sampling distribution of the statistics ^τ∗ computed on them. This is called the _*nonparametric bootstrap approach*_.
 
 ![](https://www.statisticshowto.datasciencecentral.com/wp-content/uploads/2016/10/bootstrap-sample.png)
+
 * This is a type of resampling which generates a large number of smaller samples of the same size being repeatedly drawn from original sample (_With replacement_)
   * resamples can have the same observation repeated in a single smaller sample set due to sampling w/ replacement
   * **All the iterations of resampling generates a bootstrap statistic which is compiled into a bootstrap distribution**
@@ -669,6 +840,7 @@ meds = replicate(B, {
 ggplot(tibble(medians = meds), aes(x = medians)) +
   geom_histogram(bins = 30, fill = "purple")
 ```
+
 Estimate a 99% confidence interval for the median based on these simulations. What can you conclude from looking at the overlap between this interval and 0?  
 
 ```{r}
@@ -800,6 +972,9 @@ ggplot(data.frame(lps), aes(x = lps)) +
 
 This is called a *Laplace distribution* and is useful because **the median is a good estimator of its location parameter θ** and that the **median absolute deviation can be used to estimate its scale parameter ϕ**.
 
+<center><button data-toggle="collapse" data-target="#laplace"><b>Lacplace Distirbution Equation</b></button></center>
+<div id="laplace" class="collapse">
+
 \begin{equation}
 f_Y(y)=\frac{1}{2\phi}\exp\left(-\frac{|y-\theta|}{\phi}\right),\qquad\phi>0
 \end{equation}
@@ -813,6 +988,7 @@ f_Y(y)=\frac{1}{2\phi}\exp\left(-\frac{|y-\theta|}{\phi}\right),\qquad\phi>0
 * **NOTE** - in Bayesian regression using Laplace distribution as a prior on the coefficients
   * Causes an Level1 penalty -> lasso
   * If Normal distribution as a prior, it will cause a L2 penalty -> ridge regression
+</div>
 
 <p id="12"><b><font size="4">Asymmetric Laplace</b></font><a href="#0"><sup>Return</sup></a></p>
 In the Laplace distribution, the variances of the normal components depend on W, while the means are unaffected. A useful extension adds another parameter θ that controls the locations or centers of the components.
@@ -893,6 +1069,7 @@ ggplot(tibble(x = gp), aes(x = x)) +
 As we can see, the Gamma-Poisson distribution is a discrete distribution.
 
 Another name for the Gamma-Poisson distribution is the *negative binomial distribution*.
+
   * Formula for equation is similar to binomial distribution
   * Gamma-Poisson is more defining of the underlying principles
 
@@ -971,9 +1148,10 @@ head(as.data.frame(simgp), 2)
 ggplot(simgp, aes(x = mu, y = mean, ymin = lower, ymax = upper)) +geom_point() + geom_errorbar()
 
 ```
-How can be transform these data to normalize their standard deviation?  
 
-divide the values that correspond to mu[1] (and which are centered around mean[1]) by their standard deviation sd[1], the values that correspond to mu[2] (and which are centered around mean[2]) by their standard deviation sd[2], and so on, then the resulting values will have, by construction, a standard deviation (and thus variance) of 1.
+How can we transform these data to normalize their standard deviation?  
+
+* Divide the values that correspond to mu[1] (and which are centered around mean[1]) by their standard deviation sd[1], the values that correspond to mu[2] (and which are centered around mean[2]) by their standard deviation sd[2], and so on, then the resulting values will have, by construction, a standard deviation (and thus variance) of 1.
 
 ```{r eval=TRUE}
 simgp = mutate(simgp,
@@ -984,143 +1162,6 @@ ggplot(simgp, aes(x = mean, y = trsf)) +
 ```
 
 <p id="15"><b><font size="5">Exercises</b></font><a href="#0"><sup>Return</sup></a></p>
-
-#### Exercise 4.1 (the EM algorithm)
-
-```{r Q1, eval=TRUE}
-#load in data
-yvar = readRDS(here("bookStuff", "data", "Myst.rds"))$yvar
-#view data in histogram
-ggplot(tibble(yvar), aes(x = yvar)) + geom_histogram(binwidth=0.025)
-#explore the structure of the data
-str(yvar)
-```
-```{r eval=TRUE}
-
-#we want to model the data in yvar as a mixture of 2 normal #distributions with components A and B 
-
-#create a random uniform distribution equal to the length of yvar (1000) with each entry equal to the probability of that data point belonging to component
-pA = runif(length(yvar))
-#make another numeric vector with probabilities of belonging to pB
-pB = 1 - pA
-
-#counter for iterations of the EM algorithm
-iter = 0
-#stores the current log-likelihood
-loglik = -Inf
-#stores the change in the log-likelihood from the previous iteration to the current one
-delta = +Inf
-tolerance = 1e-3
-miniter = 50; maxiter = 1000
-
-#run this loop until delta converges upon tolerance
-#continuing running while inter is less than or equal to 1000 or less than 50 
-while((delta > tolerance) && (iter <= maxiter) || (iter < miniter)) {
-  #THIS IS THE E-STEP
-  #lamda is the mixture fraction 
-  lambda = mean(pA)
-  #set mean for component A
-  muA = weighted.mean(yvar, pA)
-  #set mean for component B
-  muB = weighted.mean(yvar, pB)
-  #calculate standard deviation for component A
-  sdA = sqrt(weighted.mean((yvar - muA)^2, pA))
-  #calculate standard deviation for component B
-  sdB = sqrt(weighted.mean((yvar - muB)^2, pB))
-  
-  #THIS IS THE M-STEP
-  #the density of group A
-  phiA = dnorm(yvar, mean = muA, sd = sdA)
-  #the density of group B
-  phiB = dnorm(yvar, mean = muB, sd = sdB)
-  #formula for density fraction made up by A
-  pA   = lambda * phiA
-  #formula for density fraction made up by B
-  pB   = (1 - lambda) * phiB
-  #formula for density of mixture
-  ptot = pA + pB
-  
-  pA   = pA / ptot
-  pB   = pB / ptot
-
-  loglikOld = loglik
-  loglik = sum(log(pA))
-  delta = abs(loglikOld - loglik)
-  iter = iter + 1
-}
-param = tibble(group = c("A","B"), mean = c(muA,muB), sd = c(sdA,sdB))
-param
-iter
-```
-Which lines correspond to the E-step, which to the M-step?  
-
-The basic outline of the EM procedure is as follows:  
-(found on https://www.statisticshowto.datasciencecentral.com/em-algorithm-expectation-maximization/)
-
-1. An initial guess is made for the model’s parameters and a probability distribution is created. This is sometimes called the “E-Step” for the “Expected” distribution.
-2. Newly observed data is fed into the model.
-3. The probability distribution from the E-step is tweaked to include the new data. This is sometimes called the “M-step.”
-4. Steps 2 through 4 are repeated until stability (i.e. a distribution that doesn’t change from the E-step to the M-step) is reached.
-
-The E-step includes the lines where we set the probability that each data point belongs to component A or B as well as the lines where we calculate lamda, muA, muB, sdA, and sdB. This step incorporates pA and pB which were revised in the M-Step.
-
->  lambda = mean(pA)
->  muA = weighted.mean(yvar, pA)
->  muB = weighted.mean(yvar, pB)
->  sdA = sqrt(weighted.mean((yvar - muA)^2, pA))
->  sdB = sqrt(weighted.mean((yvar - muB)^2, pB))
-
-The maximum-likelihood estimation (MLE) is used to estimate the means for each group based on group density and mixture fraction and can be split into 2 equations and solved separately. The M-step includes:
- 
->  phiA = dnorm(yvar, mean = muA, sd = sdA)
->  phiB = dnorm(yvar, mean = muB, sd = sdB)
->  pA   = lambda * phiA
->  pB   = (1 - lambda) * phiB
->  ptot = pA + pB
->  
->  pA   = pA / ptot
->  pB   = pB / ptot
-
-1. What does the M-step do, what does the E-step do?
-
-The M-step takes the "unknown" parameters generated from the E step and uses them to modify/update the "known" parameters (probability of belong to group A or B).
-
-The E-step takes our known parameters (probability of belong to group A or B) and uses these parameters to generate the missing (mean, standard deviation) for our function.
-
-2. What is the role of the algorithm arguments tolerance, miniter and maxiter?
-
-Tolerance represents the minimum difference between log-likelihood estimates needed to loop. 
-Miniter is the minimum number of times that we must interate between the E and M steps.
-Maxiter is the maximum number of times we are allowed to interate between our E and M steps.
-
-Class question: How do you think the authors determined tolerance? Is it always the same? Does it change? Is it related to a p-value? Thoughts?
-
-3. Why do we need to compute loglik?
-
-We need to compute loglik so that we can observe how likely we our converging between our "guessed" model of data and the best fit of our parameters. When the difference between loglik and loglikOld is very small, this suggests that we have reached our maximum and have found our best model for the data.  
-
- * The `loglik` variable stores the current log-likelihood value of mixture model which estimates that the current parameters (lambda, mu, sd) are maximized to represent data
-    * the `loglik` value updates per iteration based upon sum(log(probabilities for component A)) which is changed per E-step iteration
-    * This allows us to calculate delta, which is the difference between the previous iteration loglikelihood vs current itertion loglikelihood
-      * Once delta becomes lower than the tolerance (ie) Previous iteration loglikelihood < current loglikelihood) that's an assumptuion  that the E & M-step converges and there is no benefit for further estimation
-
-
-5. Compare the results of what we are doing to the output of the normalmixEM function from the mixtools package:
-
-```{re mixtoolsQ, eval=T}
-mixtoolsQ <- normalmixEM(x=yvar, k=2, maxit=1000)
-paste(mixtoolsQ$mu, "these are the maximized mean estimates")
-paste(mixtoolsQ$sigma, "these are the maximized lambda estimates")
-paste(mixtoolsQ$loglik, "this is the MLE")
-```
-
-```{r mclustQ, eval=T}
-mclusttest <- Mclust(yvar, G=2)
-summary(mclusttest)
-mclusttest$parameters
-```
-
-These paramters are close to the parameters of the function we just generated.  
 
 #### Exercise 4.2  
 
