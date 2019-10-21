@@ -210,7 +210,7 @@ ggplot(dplyr::filter(tibble(values_1000000), coinflips_1000000), aes(x = values_
 It looks pretty darn close to the normal distribution with y-axis of counts.  
 
 <center><button data-toggle="collapse" data-target="#gdf"><b>General Density Formula</b></button></center>
-<div id="gdf" class="gdf">
+<div id="gdf" class="collapse">
 
 Thus, we can write a general formula for density of any mixture model by suming the densities of individual normal distributions (proportionately).   
 
@@ -223,7 +223,6 @@ Where:
 
 * ϕ1 is the density of normal N(μ1=1,σ<sup>2</sup>=0.25) - In this case TRUE/Heads
 * ϕ2 is the density of normal N(μ1=3,σ<sup>2</sup>=0.25) - In this case FALSE/Tails
-
 </div>
 
 Now, what if we wanted to just visualize a theoretical density of the mixture without generating Heads/Tails and calculating proportion results from a coinflip?
