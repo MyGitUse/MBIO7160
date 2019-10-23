@@ -751,7 +751,7 @@ E(Y ) = \theta + \mu \quad\quad\text{and}\quad\quad\text{var}(Y)=\sigma^2+\mu^2.
 ggplot(tibble(x=rgamma(n=1e4, shape=2, rate=1/3)), aes(x=x)) +
   geom_histogram(bins=100, fill="purple")
 
-ggplot(tibble(x=rgamma(n=1e4, shape=10, rate=3/2)), aes(x=x)) +
+ggplot(tibble(x=rgamma(n=1e4, shape = 10, rate = 3/2)), aes(x=x)) +
   geom_histogram(bins=100, fill="purple")
 ```
 
@@ -832,6 +832,8 @@ ggplot(simdat, aes(x=lambda, y=sqrt(y))) +
 
 summarise(group_by(simdat, lambda), sd(y), sd(2*sqrt(y)))
 ```
+
+![](https://getcalc.com/formula/statistics/poisson-probability-distribution.png)
 
 * Q) Repeat code above for `simdat` w/ replicates >40
   * Can use gamma-Poisson distribution to generate gamma-Poisson variables(u) & plot 95% CI around mean
