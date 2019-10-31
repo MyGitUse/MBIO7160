@@ -3,8 +3,9 @@ title: "Chapter 5: Clustering"
 output: html_notebook
 ---
 
-```{r, hidecode=T}
-
+```{r}
+library(here)
+library(vegan)
 ```
 
 
@@ -40,8 +41,8 @@ output: html_notebook
       * Need to validate clusters manually (esp. if no prior knowledge to support clusters)
       
 * **
-
 <p id="2"><b><font size="5">Chapter Summary</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
 
 * **How to compare observations?**
   * First step is to find the right distance for clustering analysis
@@ -67,6 +68,7 @@ output: html_notebook
 
 * **
 <p id="3"><b><font size="5">What are the data and why do we cluster them?</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
 * Clustering may lead to discoveries
   * ex) map cases of outbreaks - may find clusters of cases
     * collect info about situation within clusters, proximity of cases within clusters -> may reveal something latent, such as source
@@ -82,7 +84,7 @@ output: html_notebook
         *Does not make assumptions about generative mechanisms of data distributions (normal, gamma-Poisson, etc.)
         * Many clustering algorithms used in softwares (based on diversity of data types & objectives of study)
 
-![](http://web.stanford.edu/class/bios221/book/images/ClusteringA.png)
+<img src="http://web.stanford.edu/class/bios221/book/images/ClusteringA.png"  width="500" height="500"> 
 
 > We decompose the choices made in a clustering algorithm according to the steps taken:  
 starting from an observations-by-features rectangular table X -> choose an observations-to-observations distance measure and compute the distance matrix, here schematized by the triangle.  
@@ -95,29 +97,203 @@ Both types of methods require a choice to be made: the number k of clusters.
 
 * **
 <p id="4"><b><font size="5">How do we measure similarity?</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
+* First, decide what similar means
+  * ex) ways to compare birds - distance of size vs weight = one way to cluster
+    * or distance of diet vs habitat = different way to cluster
+  * **Choose relevant features & combine differences between multiple features into a single number**
+    * How distances measured & similarities between obs defined have heavy impact on clustering result
+
+<center><img src="http://web.stanford.edu/class/bios221/book/images/FourDistances_a.png"  width="120" height="120">
+<img src="http://web.stanford.edu/class/bios221/book/images/FourDistances_b.png"  width="120" height="120">
+<img src="http://web.stanford.edu/class/bios221/book/images/FourDistances_c.png"  width="120" height="120">
+<img src="http://web.stanford.edu/class/bios221/book/images/FourDistances_d.png"  width="120" height="120"></center> 
+
+> Equal-distance contour plots according to four different distances: points on any one curve are all the same distance from the center point.
+
+* Similarity selection Choices
+  * **Euclidean** = distance between 2 points (A=(a1,...,an)) & (B=(b1,...,bn)) in p-dimensional space (where p=features) -> square root of sum of squares of differences in all p-coordinate directions  
+  <button data-toggle="collapse" data-target="#c1">Euclidean</button>
+<div id="c1" class="collapse">
+\begin{equation*}
+d(A,B)=\sqrt{(a_1-b_1)^2+(a_2-b_2)^2+... +(a_p-b_p)^2}.
+\end{equation*}
+</div>
+  * **Weighted Euclidean** = distance by generalizing ordinary Euclidean distance. -> Assign different weights to different directions in feature space
+  * Seen in ch2. -> Chi-squared distance
+    * Used to compare rows in contingency tables & weight of each feature = inverse of expected value
+  * Mahalanobis distance -> another weighted Euclidean distance
+    * Accounts for different features having different dynamice range
+      * Some features -ve/+ve correlation w/ eachother
+    * Weights derived via covarience matrix of features (seen in first question below)
+  * **Manhattan/City Block/Taxicab/L1** = distance by sum of absolute differences in all coordinates  
+  <button data-toggle="collapse" data-target="#c2">Manhattan</button>
+<div id="c2" class="collapse">
+\begin{equation*}
+d(A,B)=|a_1-b_1|+|a_2-b_2|+... +|a_p-b_p|.
+\end{equation*}
+</div>
+  * **Maximum/L∞** = distance by max absolute differences between coordinates  
+  <button data-toggle="collapse" data-target="#c3">Manhattan</button>
+<div id="c3" class="collapse">
+\begin{equation*}
+d_\infty(A,B)= \max_{i}|a_i-b_i|.
+\end{equation*}
+</div>
+  * **Minkowski** = Euclidean distance without the square -> exponent 2 is replaced with m  
+  <button data-toggle="collapse" data-target="#c4">Minkowski</button>
+<div id="c4" class="collapse">
+\begin{equation}
+d(A,B) = \left( (a_1-b_1)^m+(a_2-b_2)^m+... +(a_p-b_p)^m \right)^\frac{1}{m}.
+\tag{5.1}
+\end{equation}
+</div>
+  * **Edit/Hamming** = Simplest distance to compare character sequences
+    * Counts #differences between 2 character strings
+      * ex) nucleotide or AA seqs -> different character substitutions associated w/ different contributions to distance (accounts ofr physical/evolutionary similarity)
+      * Allows for InDels
+  * **Binary** = Distance by two binary vectors, where binary values are coordinates
+    * ex) Non-zero elements = on-coordinates & zero elecments = off-coordinates
+    * Proportion of features w/ only one binary bit "on-coordinate" among features w/ at least one binary bit "on-coordinate"
+  * **Jaccard Distance** = Trait occurenence or features in ecological mutation data -> translated into presence/absence (1's or 0's)
+    * Co-occurence more informative than co-abscence
+      * ex) compare mutation patterns in HIV
+        * Co-existence of mutation in 2 different strains is more important observation vs co-absence of mutation
+        * Use **Jaccard Index**
+          * Two observation vectors (S & T)
+          * f<sub>11</sub> = #times features co-occur in both vectors
+          * f<sub>10</sub> = #times features occurs in vector S but not in T (and vice versa f<sub>01</sub>)
+          * f<sub>00</sub> #times features co-absent in both vectors  
+    <button data-toggle="collapse" data-target="#c5">Jaccard Index(Aka Jaccard Similarity)</button>
+<div id="c5" class="collapse">
+\begin{equation}
+J(S,T) = \frac{f_{11}}{f_{01}+f_{10}+f_{11}},
+\tag{5.2}
+\end{equation}
+Note that the Jaccard Index ignores co-absence (f<sub>00</sub>)
+</div>
+    <button data-toggle="collapse" data-target="#c6">Jaccard Dissimilarity</button>
+<div id="c6" class="collapse">    
+\begin{equation}
+d_J(S,T) = 1-J(S,T) = \frac{f_{01}+f_{10}}{f_{01}+f_{10}+f_{11}}.
+\tag{5.3}
+\end{equation}
+</div>
+  * **Correlation based distance** = distance based upon the correlation of A&B  
+    <button data-toggle="collapse" data-target="#c7">Correlation based distance</button>
+<div id="c7" class="collapse">
+\begin{equation*}
+d(A,B)=\sqrt{2(1-\text{cor}(A,B))}.
+\end{equation*}
+</div>  
+
+  
+* Q) Which of the two cluster centers is the red point closest to?
+<center><img src="http://web.stanford.edu/class/bios221/book/figure/chap5-Mahalanobis-1.png"  width="500" height="500"></center>
+* A) Can use Euclidean distance metric to decide that red point is closest to left cluster
+  * Problem = features have different ranges & correlations which differ between both clusters
+  * Solution = cluster using specific Mahalanobis distances (Weighted Euclidean)
+    * Figure shows contour lines for both clusters -> obtained via density estimate
+    * Mahalanobis distance approximates contours w/ ellipses
+      * Distance between red point & each cluster centers = #contour lines crossed
+      * Can see right group is more spread (red point is actually closer to the right)
+      
+* Distances computation using R
+  * `dist()` designed to use less space vs full n<sup>2</sup> positions (complete n x n distance matrix between n objects)
+    * Function computes 1/6 choices of distances (euclidean, maximum, manhattan, canberra, binary, minkowski) -> output vector of values for reconstructing complete distance matrix
+    * Function returns object of class "dist" = has relevant vector size n x (n-1)/2  
+    
+<button data-toggle="collapse" data-target="#E1">ex) 3x3 matrix</button>
+<div id="E1" class="collapse">
+```{r}
+mx <- c(0,0,0,1,1,1)
+my <- c(1,0,1,1,0,1)
+mz <- c(1,1,1,0,1,1)
+
+mat <- rbind(mx, my, mz)
+dist(mat)
+```
+
+```{r}
+dist(mat, method="binary")
+```
+</div>
+
+* To **access particular distance** (ex) distance between obs 1 &2) -> need to **turn class "dist" to "matrix"**
+
+```{r}
+load(here("BookStuff", "data", "Morder.RData"))
+sqrt(sum((Morder[1,]-Morder[2,])^2)) #Euclidean formula
+```
+```{r}
+as.matrix(dist(Morder))[2, 1]
+```
+
+* Going back to the Jaccard distance example as explained above (distance between 2 HIV strains w/ co-mutations)
+
+```{r}
+mut <- read.csv(here("BookStuff", "data", "HIVmutations.csv"))
+mut[1:3, 10:16]
+```
+
+* Q) Compare Jaccard distance between mutations in HIV data "mut" to correlation based distance (use function `vegdist()` in R-package vegan)  
+
+* A) 
+```{r}
+mutJ <- vegdist(mut, "jaccard")
+mutC <- sqrt(2*(1-cor(t(mut)))) #Correlation based distance formula
+mutJ
+```
+```{r}
+as.dist(mutC)
+```
+
+* Interesting to compare complex objects not in vectors or real numbers via dissimilarities or distances
+  * Grower's distance for data of mixed modalities (categorical factors+continuous variables) -> computed using `daisy()`
+  * Distances can be defined between pairs of objects (not just points in R or character seqs)
+    * ex) `shortest.paths()` from igraph package (ch10) computes distance between vertices on graph
+    * `cophenetic()` computes distances betweens leaves of a tree (seen on below image)
+    * `dist.multiPhylo()` from distory package can compute distance between trees  
+<center><img src="http://web.stanford.edu/class/bios221/book/images/birds_and_dinosaurs.png"  width="500" height="500"></center>
+
+* Jaccard index between graphs can be computed via looking at two graphs built on same nodes -> count #co-occuring edges
+  * use `similarity()` from igraph package
+  * Distances & dissimilarities used to compare images, sounds, maps, & documents
+    * Distance encompasses domain knowledge (if chosen carefully) -> can lead to solution for hard problems w/ heterogenous data
+    * Ask waht is relevant closeness/similairty for data -> find usefuly way to represent similarity (Ch9)  
+    
+<center><img src="http://web.stanford.edu/class/bios221/book/images/DistanceTriangle.png"  width="500" height="500"></center>
+
+> Figure 5.7: The lower triangle of distances can be computed by any of a hundred different functions in various R packages (`vegdist()` in vegan, `daisy()` in cluster, `genetic_distance()` in gstudio, `dist.dna()` in ape, `Dist()` in amap, `distance()` in ecodist, `dist.multiPhylo()` in distory, `shortestPath()` in gdistance, `%dudi.dist()` and `dist.genet()` in ade4).
+    
 
 * **
 <p id="5"><b><font size="5">Nonparametric mixture detection</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
 
 * **
 <p id="6"><b><font size="5">Clustering examples: flow cytometry and mass cytometry</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
 
 * **
 <p id="7"><b><font size="5">Hierarchical clustering</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
 
 * **
 <p id="8"><b><font size="5">Validating and choosing the number of clusters</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
 
 * **
 <p id="9"><b><font size="5">Clustering as a means for denoising</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
 
 * **
 <p id="11"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
-
-
 * **
 
+* **
 <p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
 
 *Run* = *Ctrl+Shift+Enter*  
 *Insert Chunk* =*Ctrl+Alt+I*  
