@@ -3,6 +3,11 @@ title: "Chapter 5: Clustering"
 output: html_notebook
 ---
 
+
+```{r libraries, message=F, warning=F}
+
+```
+
 <body>
       <font face = "Times New Roman">
   

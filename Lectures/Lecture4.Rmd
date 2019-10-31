@@ -3,13 +3,12 @@ title: "Chapter 4: Mixture Models"
 output: html_notebook
 ---
 
-```{r packages, hidecode}
+```{r, message=FALSE, warning=F}
 library(here)
 library(ggplot2)
 library(dplyr)
 library(mclust)
 library(mixtools)
-library(pscl)
 library(mosaics)
 library(HistData)
 library(bootstrap)

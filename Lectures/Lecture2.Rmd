@@ -4,7 +4,7 @@ output: html_notebook
 ---
 
 
-```{r, dependent}
+```{r, message=FALSE, warning=F}
 library(here)
 library(vcd)
 library(Biostrings)
