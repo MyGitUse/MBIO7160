@@ -7,14 +7,18 @@ output: html_notebook
 library(here)
 library(vegan)
 library(scRNAseq) #bioconductor
+  # In windows conda R "BiocManager::install("scRNAseq", INSTALL_opts=c("--no-multiarch"))"
 library(clusterExperiment) #bioconductor
   # requires gsl, so on linux terminal "sudo apt-get install libgsl-dev" to allow installation of gsl on R (install.packages("gsl")) or BiocManager::install("clusterExperiment") might install it w/ other packages
 #browseVignettes("clusterExperiment")
 library(limma)
 library("flowCore") ; library("flowViz")
-library(Biobase)
+library(Biobase)  #bioconductor
+  # In windows conda R "BiocManager::install("Biobase", INSTALL_opts=c("--no-multiarch"))"
 library(readr)
-library(flowPeaks)
+library(flowPeaks) #bioconductor
+library(ggcyto) #bioconductor
+library(labeling)
 ```
 
 
@@ -441,6 +445,26 @@ flowPlot(fcsBT, plotParameters = c("CD3all", "CD56"), logy = FALSE)
 contour(fcsBT[, c(40, 19)], add = TRUE)
 ```
 
+* The bioconductor package ggcyto allows plotting each patient in a different facet via ggplot
+
+```{r}
+ggcd4cd8 <- ggcyto(fcsB,aes(x=CD4, Y=CD8))
+ggcd4 <- ggcyto(fcsB,aes(x=CD4))
+ggcd8 <- ggcyto(fcsB,aes(x=CD8))
+p1 <- ggcd4+geom_histogram(bins=60)
+p1b <- ggcd8+geom_histogram(bins=60)
+asinhT <- arcsinhTransform(a=0,b=1)
+transl <- transformList(colnames(fcsB)[-c(1,2,41)], asinhT)
+fcsBT <- transform(fcsB, transl)
+p1t <- ggcyto(fcsBT,aes(x=CD4))+geom_histogram(bins=90)
+p2t <- ggcyto(fcsBT,aes(x=CD4, y=CD8))+geom_density2d(colour="black")
+p3t <- ggcyto(fcsBT,aes(x=CD45RA, y=CD20)) + geom_density2d(colour="black")
+
+p2t ; p3t
+```
+
+
+### Desnity-based clustering
 
 * **
 <p id="7"><b><font size="5">Hierarchical clustering</b></font><a href="#0"><sup>Return</sup></a></p>
