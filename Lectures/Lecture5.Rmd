@@ -19,6 +19,11 @@ library(readr)
 library(flowPeaks) #bioconductor
 library(ggcyto) #bioconductor
 library(labeling)
+library(dbscan)
+library(pheatmap)
+library(dplyr)
+library(fpc) ; library(cluster)
+library(Hiiragi2013)
 ```
 
 
@@ -218,7 +223,7 @@ d(A,B)=\sqrt{2(1-\text{cor}(A,B))}.
     
 <button data-toggle="collapse" data-target="#E1">ex) 3x3 matrix</button>
 <div id="E1" class="collapse">
-```{r}
+```{r eval=T}
 mx <- c(0,0,0,1,1,1)
 my <- c(1,0,1,1,0,1)
 mz <- c(1,1,1,0,1,1)
@@ -227,24 +232,24 @@ mat <- rbind(mx, my, mz)
 dist(mat)
 ```
 
-```{r}
+```{r eval=T}
 dist(mat, method="binary")
 ```
 </div>
 
 * To **access particular distance** (ex) distance between obs 1 &2) -> need to **turn class "dist" to "matrix"**
 
-```{r}
+```{r eval=T}
 load(here("BookStuff", "data", "Morder.RData"))
 sqrt(sum((Morder[1,]-Morder[2,])^2)) #Euclidean formula
 ```
-```{r}
+```{r eval=T}
 as.matrix(dist(Morder))[2, 1]
 ```
 
 * Going back to the Jaccard distance example as explained above (distance between 2 HIV strains w/ co-mutations)
 
-```{r}
+```{r eval=T}
 mut <- read.csv(here("BookStuff", "data", "HIVmutations.csv"))
 mut[1:3, 10:16]
 ```
@@ -252,12 +257,12 @@ mut[1:3, 10:16]
 * Q) Compare Jaccard distance between mutations in HIV data "mut" to correlation based distance (use function `vegdist()` in R-package vegan)  
 
 * A) 
-```{r}
+```{r eval=T}
 mutJ <- vegdist(mut, "jaccard")
 mutC <- sqrt(2*(1-cor(t(mut)))) #Correlation based distance formula
 mutJ
 ```
-```{r}
+```{r eval=T}
 as.dist(mutC)
 ```
 
@@ -315,7 +320,7 @@ as.dist(mutC)
 * A) Each point in EM algorithm is used for computing mean of all groups via probabilitically assigned weight
   * Each point in k-means algorithm is assigned to a cluster or not, so points participate only in computation of center of a single cluster
   
-### <mark style='background-color:yellow'>Tight clusters w/ resampling</mark>
+#### <mark style='background-color:yellow'>Tight clusters w/ resampling</mark>
   * Some schemes repeat process many times via different intial centers (starting seeds) or resampling datasets
     * Repeating clustering procedure multiple times on the same data, but using different starting points = strong forms
     * Repeated subsampling of dataset then clustering, results in groups of obs which are "almost always" grouped = tight clusters
@@ -330,7 +335,7 @@ as.dist(mutC)
   * Set choice of genes to include at 60, 100, or 150 most variable genes
   * Plot clustering result for _k_ varying between 4 & 9 -> what do you notice?
 * A)
-```{r}
+```{r eval=T}
 data("fluidigm", package="scRNAseq") #needs scRNAseq package
 se <- fluidigm[, fluidigm$Coverage_Type == "High"] #subset the df fluidigm to have all rows but only column "Coverage_Type" where values = "High"
 assays(se) <- list(normalized_counts=round(limma::normalizeQuantiles(assay(se)))) #normalizeQuantiles requires the limma package
@@ -353,7 +358,7 @@ plotClusters(ce, whichClusters="workflow", axisLine=-1)
     * These are collected by flow cytometry (via fluorescence) or mass cytometry (single cell mass spec)
     * ex) CD4 of Th cells (CD4+)
       * Use bioconductor package for cytometry data (flowCore & flowWiz) to read fcsB dataset
-```{r}
+```{r eval=T}
 fcsB <- read.FCS(here("BookStuff", "data", "Bendall_2011.fcs"))
 slotNames(fcsB)
 ```
@@ -363,20 +368,20 @@ slotNames(fcsB)
 
 * Qa) Look at structure of fcsB (`colnames()`) - how many variables measured?
 * Aa) 
-```{r}
+```{r eval=T}
 length(colnames(fcsB))
 ```
 
 * Qb) Subset the data to look at first few rows (`Biobase::exprs(fcsB)`) - how many cells were measured?
 * Ab)
-```{r}
+```{r eval=T}
 Biobase::exprs(fcsB[1:3,])
 ```
 
-### Data Preprocessing
+#### Data Preprocessing
   * Load table of data which shows mapping between isotopes & markers(antibodies)
     * replace isotope names in columns of fcsB w/ marker names -> easier to read code
-```{r}
+```{r eval=T}
 markersB <- readr::read_csv(here("BookStuff", "data", "Bendall_2011_markers.csv"))
 mt <- match(markersB$isotope, colnames(fcsB))
 stopifnot(!any(is.na(mt))) #for this to work, need to rerun fcsB load in 3 code blocks above
@@ -401,7 +406,7 @@ flowPlot(fcsB, plotParameters = colnames(fcsB)[2:3], logy=TRUE) #this is the sam
 \end{equation*}
 
 * Run the following code to see two main regimines of asinh(x) transformation (when large values or small values)
-```{r}
+```{r eval=T}
 v1 = seq(0, 1, length.out = 100)
 plot(log(v1), asinh(v1), type = 'l') #when small values, the log(x) is not equal to asinh(x)
 plot(v1, asinh(v1), type = 'l') #when small values, asinh(x) behaves linearly
@@ -410,7 +415,7 @@ plot(log(v3), asinh(v3), type= 'l') #when large values, the log(x) is euqal to a
 plot(v3, asinh(v1), type = 'l') 
 ```
 
-```{r}
+```{r eval=T}
 #This is produced by flowCore package
 asinhtrsf = arcsinhTransform(a = 0.1, b = 1)
 fcsBT = transform(fcsB, transformList(colnames(fcsB)[-c(1, 2, 41)], asinhtrsf))
@@ -421,7 +426,7 @@ densityplot( ~`CD3all`, fcsBT)
 > The top plot shows a simple one dimensional histogram before transformation; on the bottom we see the distribution after transformation. It reveals a bimodality and the existence of two cell populations.
 
 * Q) How many dimensions does the following code use to split the data into 2 groups using k-means algorithm?
-```{r}
+```{r eval=T}
 kf = kmeansFilter("CD3all" = c("Pop1","Pop2"), filterId="myKmFilter")
 fres = flowCore::filter(fcsBT, kf)
 summary(fres)
@@ -431,14 +436,14 @@ fcsBT2 = flowCore::split(fcsBT, fres, population = "Pop2")
 ```
 
 * A)
-```{r}
+```{r eval=T}
 # This is a naive projection of the data into 2D spanned by CD4 & CD56 markers -> so answer is 4 dimensions by k-means
 
 fp <- flowPeaks(Biobase::exprs(fcsBT)[,c("CD3all", "CD56")])
 plot(fp)
 ```
 
-```{r}
+```{r eval=T}
 # When plotting points densly populating an area -> avoid overplotting (some techniques in ch3)
   #can use contours & shading as follows (more informative than the previous graph)
 flowPlot(fcsBT, plotParameters = c("CD3all", "CD56"), logy = FALSE)
@@ -447,7 +452,7 @@ contour(fcsBT[, c(40, 19)], add = TRUE)
 
 * The bioconductor package ggcyto allows plotting each patient in a different facet via ggplot
 
-```{r}
+```{r eval=T}
 ggcd4cd8 <- ggcyto(fcsB,aes(x=CD4, Y=CD8))
 ggcd4 <- ggcyto(fcsB,aes(x=CD4))
 ggcd8 <- ggcyto(fcsB,aes(x=CD8))
@@ -463,20 +468,419 @@ p3t <- ggcyto(fcsBT,aes(x=CD45RA, y=CD20)) + geom_density2d(colour="black")
 p2t ; p3t
 ```
 
+#### Desnity-based clustering
+* Flow cytometry datasets w/ few markers but large # cells can under-go density-based clustering
+  * Clustering would look for regions of high density separated via sparse regions
+  * Can work with non convex clusters
+  * ex) dbscan method
 
-### Desnity-based clustering
+```{r eval=T}
+mc5 <- Biobase::exprs(fcsBT)[,c(15,16,19,40,33)] #markers into clusters
+res5 <- dbscan::dbscan(mc5, eps=0.65, minPts=30)
+mc5df <- data.frame(mc5, cluster=as.factor(res5$cluster))
+table(mc5df$cluster)
+```
+
+```{r eval=T}
+ggplot(mc5df, aes(x=CD4,    y=CD8,  col=cluster))+geom_density2d()
+ggplot(mc5df, aes(x=CD3all, y=CD20, col=cluster))+geom_density2d()
+```
+
+>  results of clustering with dbscan using five markers. Here we only show the projections of the data into the CD4-CD8 and C3all-CD20 planes. - overlaps = show multidimensionality of data
+
+* Q) Increase the dimension to 6 by adding one CD marker-variables form input data
+  * Vary eps, & find 4 clusters where >= clusters have more than 100 points
+  * Repeat w/ 7 CD marker-variables (what is the difference?)
+* A) 
+```{r eval=T}
+# 6 marker example
+mc6 = Biobase::exprs(fcsBT)[, c(15, 16, 19, 40, 33, 25)] #6 markers
+res = dbscan::dbscan(mc6, eps = 0.65, minPts = 20)
+mc6df = data.frame(mc6, cluster = as.factor(res$cluster))
+table(mc6df$cluster)
+```
+Increase #markers = decrease #clusters
+
+```{r eval=T}
+# Changing eps= in dbscan()
+mc6 = Biobase::exprs(fcsBT)[, c(15, 16, 19, 40, 33, 25)] #6 markers
+res = dbscan::dbscan(mc6, eps = 0.55, minPts = 20) #if eps decreased 
+mc6df = data.frame(mc6, cluster = as.factor(res$cluster))
+table(mc6df$cluster)
+
+# Changing eps= in dbscan()
+mc6 = Biobase::exprs(fcsBT)[, c(15, 16, 19, 40, 33, 25)] #6 markers
+res = dbscan::dbscan(mc6, eps = 0.75, minPts = 20) #if eps increased
+mc6df = data.frame(mc6, cluster = as.factor(res$cluster))
+table(mc6df$cluster)
+```
+Decrease eps = decrease clusters, increase eps = increase clusters
+
+```{r eval=T}
+mc7 = Biobase::exprs(fcsBT)[, c(11, 15, 16, 19, 25, 33, 40)] #7 markers/dimensions
+res = dbscan::dbscan(mc7, eps = 0.65, minPts = 20) #unchanged eps
+mc7df = data.frame(mc7, cluster = as.factor(res$cluster))
+table(mc7df$cluster)
+
+mc7 = Biobase::exprs(fcsBT)[, c(11, 15, 16, 19, 25, 33, 40)] #7 markers/dimension
+res = dbscan::dbscan(mc7, eps = 0.95, minPts = 20) #increased eps
+mc7df = data.frame(mc7, cluster = as.factor(res$cluster))
+table(mc7df$cluster)
+```
+* <mark style='background-color:yellow'>If increased dimensions (#makers), need to increase eps to increase #clusters</mark>
+  * **This is known as the curse of dimensionality**
+  
+  > eps	size of the epsilon neighborhood.
+  
+* dbscan density-based clustering algorithms
+  * Clusters pts in dense regions based on _density-connectedness criteria_
+    * Looks for small neighbourhood spheres of radius (ϵ) -> views if points are connected
+  * Density-reachability concept
+    * point q is density-reachable from point p if not further than a threshold (ϵ)
+    * if point p is surrounded by many pts (such that p & q may be part of a dense region) -> then q is density-reachable from p if there is a seq of points p1,...,pn w/ p1=p & p<sub>n</sub>=q -> so each p<sub>i+1</sub> is density-reachable from p<sub>i</sub>
+    * Cluster is a subset of points w/ following properties
+      1. All pts in clusters are mutually density-connected
+      2. If a point is density-connected to any point of cluster, then it is part of the cluster
+      3. Groups of points must have MinPts points to count as a cluster
+
+> It is important that the method looks for high density of points in a neighborhood. Other methods exist that try to define clusters by a void, or “missing points” between clusters. But these are vulnerable to the curse of dimensionality; these can create spurious “voids”.
 
 * **
 <p id="7"><b><font size="5">Hierarchical clustering</b></font><a href="#0"><sup>Return</sup></a></p>
 * **
 
+* This a bottom-up approach (start from obs to infer top/common ancestor)
+  * Similar observations & subclasses assembled iteratively
+  * ex) Linnaeus nested clusters of organisms based on specific characteristics, seen in below image 
+<center><img src="http://web.stanford.edu/class/bios221/book/images/LinnaeusClass-01.png"  width="200" height="200"></center>
+
+* **Dendogram ordering**
+  * Order of labels doesn't matter within sibling pairs
+  * Horizontal distances usually meaningless, vertrical distances have some info for interpretations about neighbours
+    * non-monophyletic = not from same subtree/clade -> but can appear as neighbours in a plot (ex) B & D in the below image = non-monophyletic)
+
+<center><img src="http://web.stanford.edu/class/bios221/book/images/SameTree-01.png"  width="400" height="200">
+</center>
+
+> Three representations of the same hierarchical clustering tree.
+
+* **Top-down hierarchies**
+  * Alternative to top-down approach
+  * Takes all objects & spits into sequence based on chosen criteria
+    * **Recursive partitioning method** -> makes _decision trees_
+  * Useful for predicting things (ex) survival time of diseased)
+    * split heterogenous population into homogenous subgroups via partitioning
+  * This chapter will focus on bottom-up approaches (top-down partitioning in supervised learning & classification CH12)
+
+#### Computing (dis)similarities between aggregated clusters
+* Hierarchical clustering by aggregation requires more than distances between pairs of individual objects
+  * **need to also calculate distances between aggregates**
+* How to define aggregates?
+  * Based on object-obeject distances -> each choice results in different hieratchical clustering type
+* Hierarchical clustering algorithms
+  * starts by grouping most similar observations
+    * If aggregation occurs -> need to determine what distance between newly formed cluster & all other points OR distance between two clusters
+
+* Choices to build hierarchical clustering trees
+  * **Minimal jump & Single Linkage/Nearest neighbour method** = finds distance between two clusters using smallest distance between any 2points in the two cluster
+    * This method creates clusters looking like continous strings of points (trees are comb-shaped)  
+      <button data-toggle="collapse" data-target="#h1">Nearest Neighbour method</button>
+<div id="h1" class="collapse">    
+\begin{equation*}
+d_{12} = \min_{i \in C_1, i \in C_2 } d_{ij}.
+\end{equation*}
+<center><img src="http://web.stanford.edu/class/bios221/book/images/ClusterStepChoiceSingle1b.png"  width="200" height="200"></center>
+> In the single linkage method, the distance between groups C1 and C2 is defined as the distance between the closest two points from the groups.
+</div>
+      
+  * **Maximum jump/Complete linkage method** = Defines distance betwen clusters via largest distance between any 2objects in two clusters  
+            <button data-toggle="collapse" data-target="#h2">Complete linkage method</button>
+<div id="h2" class="collapse">    
+\begin{equation*}
+d_{12} = \max_{i \in C_1, i \in C_2 } d_{ij}.
+\end{equation*}
+<center><img src="http://web.stanford.edu/class/bios221/book/images/ClusterStepChoiceComplete1b.png"  width="200" height="200"></center>
+> In the complete linkage method, the distance between groups C1 and C2 is defined as the maximum distance between pairs of points from the two groups.
+</div>
+        
+  * **Average linkage method** = halfway between the nearest neighbour method & complete linkage method  
+        <button data-toggle="collapse" data-target="#h3">Average Linkage Method</button>
+<div id="h3" class="collapse">    
+\begin{equation*}
+d_{12} = \frac{1}{|C_1| |C_2|}\sum_{i \in C_1, i \in C_2 } d_{ij}
+\end{equation*}
+</div>
+  
+  * **Ward's method** = Analysis of variance approach to minimize variance _within_ clusters
+    * Very efficient method
+    * Problem = breaks clusters into smaller sizes  
+        <button data-toggle="collapse" data-target="#h4">Ward's Method</button>
+<div id="h4" class="collapse">    
+<center><img src="http://web.stanford.edu/class/bios221/book/images/BetweenWithinb.png"  width="200" height="200"></center>
+  > The Ward method maximizes the between group sum of squares (red edges), while minimizing the sums of squares within groups (black edges).
+</div>
+
+* Complete list of methods to make hierarchical clustering trees in below dropdown
+  * advantage of hierarchical clustering(bottom-up) vs partitioning methods(top-down) = graphical diagnostic of strength of groupings (length of inner edges of tree)
+  * Prior knowledge of clusters being approximately the same size -> use average linkage or Ward's method to minimize winithin class variance
+  <button data-toggle="collapse" data-target="#h5">Hierarchical Method List</button>
+<div id="h5" class="collapse">
+|**Method**|**Pros**|**Cons**|
+|---|---|---|
+|Single linkage|#of clusters| comb-like trees|
+|Complete linkage|compact classes| single obs can alter groups|
+|Average linkage|similar size & var|not rombust|
+|Centroid|rombust to outliers| smaller #clusters|
+|Ward|minimize inertia|classes small if high variability|
+</div>
+
+<center><img src="http://web.stanford.edu/class/bios221/book/images/single14heatmap.png"  width="200" height="200">
+<img src="http://web.stanford.edu/class/bios221/book/images/average14heatmap.png"  width="200" height="200">
+<img src="http://web.stanford.edu/class/bios221/book/images/complete14heatmap.png"  width="200" height="200"></center>
+  > Three hierarchical clustering plots made with different agglomeration choices. Note the comb-like structure for single linkage in the left. The average and complete linkage trees only differ by the lengths of their inner branches.
+
+* Q) Hierarchical clustering for cell populations (Morder data - gene expression measurements for 156 genes of 3 types of T-cells (naive, effector, memory) from 10 patients)
+  * pheatmap package -> make 2 simple heatmaps w/o dendogram or reordering for Euclidean & Manhattan distances
+* A)
+```{r eval=T}
+MorderE <- vegdist(Morder, "euclidean")
+pheatmap(MorderE)
+
+MorderM <- vegdist(Morder, "manhattan")
+pheatmap(MorderM)
+```
+
+
+```{r eval=T}
+# Authors code
+
+## celltypes=factor(substr(rownames(Morder),7,9))
+## status=factor(substr(rownames(Morder),1,3))
+## ##Just the Euclidean distance
+## pheatmap(as.matrix(dist(Morder)),cluster_rows=FALSE,
+##         cluster_cols=FALSE,cellwidth=10,cellheight=10)
+## ###Manhattan
+## pheatmap(as.matrix(dist(Morder,"manhattan")),cluster_rows=FALSE,
+##         cluster_cols=FALSE,cellwidth=10,cellheight=10)
+```
+
+
+* Q) Look at differences in orderings in the hierarchical clustering trees w/ the Euclidean & Manhattan distances
+  * What differences are noticeable?
+* A) <mark style='background-color:red'>Dunno</mark>
+
+* Q) Hierarchical clustering tree is like the Calder mobile (image below) - can swing around many internal pivot pts (nodes) = different orderings of the leafs which are actually still the same order with each tree.
+  * In the right tree image, how many ways to order the leaf labels but maintain consistent tree?
+<center><img src="http://web.stanford.edu/class/bios221/book/images/CalderHand.png"  width="200" height="200">
+<img src="http://web.stanford.edu/class/bios221/book/images/apeclust14.png"  width="200" height="200"></center>
+
+> Left:  
+Hierarchical clustering output has similar properties to a mobile: the branches can rotate freely from their suspension points.  
+Right:  
+This tree can be drawn in many different ways. The ordering of the leaves as it is appears here is (8,11,9,10,7,5,6,1,4,2,3).
+
+* A) each internal connection node can swing, so there are 9 nodes 
+  * nPr? order is important
+  
+* Common to see heatmaps w/ rows and/or columns ordered based on hierarchical clustering tree
+  * Makes clusters look stronger than it actually is
+  * Alternative ways to ordering rows/columns in heatmaps via NeatMap package (Oridination methods to find orderings CH9)
+   
 * **
 <p id="8"><b><font size="5">Validating and choosing the number of clusters</b></font><a href="#0"><sup>Return</sup></a></p>
 * **
 
+* Clustering methods used to give good groupings of data based on various constraints
+  * Problem = clustering methods will give good groupings even if no group should exist
+  * If there are no real clusters in data -> hierarchical clustering tree may show short branches (difficults to quantify)
+  * Need to validate cluster choices w/ criteria, such as
+    * **What extent the cluster maximizes the between group differences but keeps within-group distances small**
+      * ex) maximize length of red lines & minimize length of black lines in Ward's method figure above  
+<button data-toggle="collapse" data-target="#v1">within-groups sum of squared distances (WSS<sub>k</sub>)</button>
+<div id="v1" class="collapse">    
+\begin{equation} 
+\text{WSS}_k=\sum_{\ell=1}^k \sum_{x_i \in C_\ell} d^2(x_i, \bar{x}_{\ell})
+\tag{5.4}
+\end{equation}
+Where:
+k= #clusters, C<sub>l</sub>= set of objects in the l-th cluster, x(hat)<sub>l</sub>=center of mass(avrg pt) in l-th cluster
+</div>
+
+> dependence on k of the WSS in Equation (5.4) as we are interested in comparing this quantity across different values of k, for the same cluster algorithm. Stated as it is, the WSS is however not a sufficient criterion: the smallest value of WSS would simply be obtained by making each point its own cluster. The WSS is a useful building block, but we need more sophisticated ideas than just looking at this number alone.  
+One idea is to look at WSS<sub>k</sub> as a function of k. This will always be a decreasing function, but if there is a pronounced region where it decreases sharply and then flattens out, we call this an elbow and might take this as a potential sweet spot for the number of clusters.  
+
+<button data-toggle="collapse" data-target="#v2">Alternative WSS<sub>k</sub></button>
+<div id="v2" class="collapse">    
+\begin{equation} 
+\text{WSS}_k=\sum_{\ell=1}^k \frac{1}{2 n_\ell} \sum_{x_i \in C_\ell} \sum_{x_j \in C_\ell} d^2(x_i,x_j),
+\tag{5.5}
+\end{equation}
+Where:
+k= #clusters, C<sub>l</sub>= set of objects in the l-th cluster, x(hat)<sub>l</sub>=center of mass(avrg pt) in l-th cluster, n<sub>l</sub> is the size of the l-th cluster
+</div>
+
+* Q) Use R to compute sum of distances between all pairs of pts in a cluster & compare to WSS<sub>k</sub>
+* A) <mark style='background-color:red'>Skipped</mark>
+
+* **The above question was suppose to show within-cluster sum of squares (WSS) measures distances of points in cluster to the center & average distances between all pairs of points in cluster**
+
+* When looking at deciding how many clusters are appropriate for data -> useful to look at cases where we know the actual answer
+  * Simulate data coming from 4groups (pipe %>% and `bind_rows()` of dplyr to concatenate 4 tibbles matching in each cluster into one tibble)
+  
+```{r}
+simdat = lapply(c(0, 8), function(mx) { #to list consiting of 0 & 8 - apply the function which intakes mx created in above code code (similarity section)
+  lapply(c(0,8), function(my) { #do the same to my
+    tibble(x = rnorm(100, mean = mx, sd = 2), #make a tibble of rnorm() numbers
+           y = rnorm(100, mean = my, sd = 2),
+           class = paste(mx, my, sep = ":"))
+   }) %>% bind_rows
+}) %>% bind_rows
+simdat
+```
+```{r}
+simdatxy = simdat[, c("x", "y")] # without class label
+ggplot(simdat, aes(x = x, y = y, col = class)) + geom_point() +
+  coord_fixed()
+```
+
+> The simdat data colored by the class labels. Here, we know the labels since we generated the data – usually we do not know them.
+
+* Compute within-groups sum of squares for clusters obtained via k-means method
+
+```{r}
+wss = tibble(k = 1:8, value = NA_real_)
+wss$value[1] = sum(scale(simdatxy, scale = FALSE)^2)
+for (i in 2:nrow(wss)) {
+  km  = kmeans(simdatxy, centers = wss$k[i])
+  wss$value[i] = sum(km$withinss)
+}
+ggplot(wss, aes(x = k, y = value)) + geom_col()
+```
+
+> The barchart of the WSS statistic as a function of k shows that the last substantial jump is just before k=4. This indicates that the best choice for these data is k=4.
+
+* Q) The Calinski-Harabasz index uses WSS & BSS (between group sums of squares) - inspired by F statistic for variance anlysis(F stat = ratio of mean sum of squares via factor to mean residual sum of squares)
+  * x(hat) = overall center of mass (avrg pt)
+  * Plot CH index for simdat data
+  
+\begin{equation*}
+\text{CH}(k)=\frac{\text{BSS}_k}{\text{WSS}_k}\times\frac{N-k}{N-1}
+\qquad \text{where} \quad \text{BSS}_k = \sum_{\ell=1}^k n_\ell(\bar{x}_{\ell}-\bar{x})^2,
+\end{equation*}
+
+* A)
+```{r}
+CH = tibble(
+  k = 2:8,
+  value = sapply(k, function(i) {
+    p = pam(simdatxy, i)
+    calinhara(simdatxy, p$cluster)
+  })
+)
+ggplot(CH, aes(x = k, y = value)) + geom_line() + geom_point() +
+  ylab("CH index")
+```
+
+> The Calinski-Harabasz index, i.,e., the ratio of the between and within group variances for different choices of k, computed on the simdat data.
+
+#### Using the gap statistic
+* Take log of WSS (log(WSS<sub>k</sub>)) and compare to averages from simluated data w/ less structure = good way of choosing k (Gap statistic)
+  * Compute log(WSS<sub>k</sub>) for range of values of k & #clusters
+  * Compare to reference data w/ similar #dimensions & various non-clustered distributions
+  * Can use uniform distributed data or data simulated w/ same co-variance structure as original data
+  
+* Gap statistic algorithm (Uses monte carlo) -> compares gap statistic (log(WSS)) for observed data to average over simulations of data w/ similar structure
+  1. Cluster data w/ k clusters -> compute WSS for various k choices
+  2. Make B plausible reference data sets via Monte Carlo sampling from homogenous distribution (redo step1 using simulated data) -> Results in B new WSS fo simulated data W*<sub>kb</sub> for b=1,...,B
+  3. Compute gap(k)-statistic (first term expected to be larger than 2nd if clustering is good (smaller WSS)- gap statistic should be positive b/c looking for highest value) (g3)
+  4. Use standard deviation (g4) to choose best k -> Choose best smallest k based on gap(k) >= gap(k+1) formula below (g4.1)
+  
+  
+\begin{equation*}
+\text{gap}(k) = \overline{l}_k - \log \text{WSS}_k
+    \quad\text{with}\quad
+    \overline{l}_k =\frac{1}{B}\sum_{b=1}^B \log W^*_{kb}
+    \tag{g3}
+\end{equation*}
+
+\begin{equation*}
+\text{sd}_k^2 = \frac{1}{B-1}\sum_{b=1}^B\left(\log(W^*_{kb})-\overline{l}_k\right)^2
+\tag{g4}
+\end{equation*}
+
+\begin{equation*}
+\text{gap}(k) \geq \text{gap}(k+1) - s'_{k+1}\qquad \text{where } s'_{k+1}=\text{sd}_{k+1}\sqrt{1+1/B}.
+\tag{g4.1}
+\end{equation*}
+
+* Packages cluster & clusterCrit have gap statistic algorithm
+
+* Q) Make a function plotting gap statistic. Show output for simdat example dataset clusted w/ `pam()`
+* A)
+```{r}
+pamfun = function(x, k)
+  list(cluster = pam(x, k, cluster.only = TRUE))
+
+gss = clusGap(simdatxy, FUN = pamfun, K.max = 8, B = 50,
+              verbose = FALSE)
+plot_gap = function(x) {
+  gstab = data.frame(x$Tab, k = seq_len(nrow(x$Tab)))
+  ggplot(gstab, aes(k, gap)) + geom_line() +
+    geom_errorbar(aes(ymax = gap + SE.sim,
+                      ymin = gap - SE.sim), width=0.1) +
+    geom_point(size = 3, col=  "red")
+}
+plot_gap(gss)
+```
+
+* Using gap statistic on real example to cee how cells cluster 
+```{r}
+data("x")
+selFeats = order(rowVars(Biobase::exprs(x)), decreasing = TRUE)[1:50] #choosing the 50 most variable genes (features) -> reduces influence of tachnical/batch effects - if this is not done, may suppress biological signal
+embmat = t(Biobase::exprs(x)[selFeats, ])
+embgap = clusGap(embmat, FUN = pamfun, K.max = 24, verbose = FALSE)
+k1 = maxSE(embgap$Tab[, "gap"], embgap$Tab[, "SE.sim"])
+k2 = maxSE(embgap$Tab[, "gap"], embgap$Tab[, "SE.sim"],
+           method = "Tibs2001SEmax")
+c(k1, k2)
+```
+
+* Default choice for #of clusters k1 = first value of k which gap is not > ((first local max)-(standard error(s)))
+  * `clausGap()`
+  * Gives number of clusters k=9
+    * if compared to gap(k) >= gap(k+1)-s`<sub>k+1</sub> -> this would give k=7
+    
+```{r}
+plot(embgap, main = "")
+cl = pamfun(embmat, k = k1)$cluster
+table(pData(x)[names(cl), "sampleGroup"], cl)
+```
+    
+> we see the comparison between the clustering that we got from pamfun with the sample labels in the annotation of the data.
+
+* Q) How do results change if all feature in x used (rather than subsetting top 50 most variable genes?)
+* A)
+```{r}
+data("x")
+selFeats1 = order(rowVars(Biobase::exprs(x)), decreasing = TRUE) #not choosing the 50 most variable genes (features) 
+embmat1 = t(Biobase::exprs(x)[selFeats1, ])
+embgap1 = clusGap(embmat1, FUN = pamfun, K.max = 24, verbose = FALSE)
+k11 = maxSE(embgap1$Tab[, "gap"], embgap1$Tab[, "SE.sim"])
+k21 = maxSE(embgap1$Tab[, "gap"], embgap1$Tab[, "SE.sim"],
+           method = "Tibs2001SEmax")
+c(k11, k21)
+plot(embgap1, main = "")
+cl1 = pamfun(embmat1, k11 = k11)$cluster
+table(pData(x)[names(cl1), "sampleGroup"], cl1)
+```
+
+#### Cluster validation via bootstrap
+
+
 * **
 <p id="9"><b><font size="5">Clustering as a means for denoising</b></font><a href="#0"><sup>Return</sup></a></p>
 * **
+
 
 * **
 <p id="11"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
