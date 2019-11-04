@@ -1293,25 +1293,6 @@ The quality of the reverse reads always suck compared to the forward. Why? I wou
 
 > Here, the forward reads maintain high quality throughout, while the quality of the reverse reads drops significantly at about position 160. Therefore, we truncate the forward reads at position 240, and trimm the first 10 nucleotides as these positions are of lower quality. The reverse reads are trimmed at position 160. Combine these trimming parameters with standard filtering parameters remember to enforce a maximum of 2 expected errors per-read. (Hint: Trim and filter on paired reads jointly, i.e., both reads must pass the filter for the pair to pass. The input arguments should be chosen following the dada2 vignette carefully. We recommend filtering out all reads with any ambiguous nucleotides.)
 
-* **
-<p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
-* **
-
-*Run* = *Ctrl+Shift+Enter*  
-*Insert Chunk* =*Ctrl+Alt+I*  
-*Preview*=*Ctrl+Shift+K*
-
-* Linux
-  * `find . -name *.fastq` & to remove everything found `find -name *fastq -exec rm {} \;`
-
-
-* **arithmetic mean** = average of set of numerical values
-
-* From wiki
-
->Silhouette refers to a method of interpretation and validation of consistency within clusters of data. The technique provides a succinct graphical representation of how well each object has been classified.[1]  
-The silhouette value is a measure of how similar an object is to its own cluster (cohesion) compared to other clusters (separation). **The silhouette ranges from −1 to +1, where a high value indicates that the object is well matched to its own cluster and poorly matched to neighboring clusters. If most objects have a high value, then the clustering configuration is appropriate.** If many points have a low or negative value, then the clustering configuration may have too many or too few clusters.  
-The silhouette can be calculated with any distance metric, such as the Euclidean distance or the Manhattan distance.
 
 ```{r}
 # Wanted to know how this works - here is authors solution
@@ -1332,6 +1313,32 @@ names(derepRs) = sampleNames
 >Use R to create a map like the one shown in Figure 5.2. Hint: go to the [website of the British National Archives](http://bombsight.org/#15/51.5050/-0.0900) and download street addresses of hits, use an address resolution service to convert these into geographic coordinates, and display these as points on a map of London.
 
 * skipped
+
+* **
+<p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
+
+*Run* = *Ctrl+Shift+Enter*  
+*Insert Chunk* =*Ctrl+Alt+I*  
+*Preview*=*Ctrl+Shift+K*
+
+* Linux
+  * `find . -name *.fastq` & to remove everything found `find -name *fastq -exec rm {} \;`
+
+
+* **arithmetic mean** = average of set of numerical values
+
+* From wiki
+
+>Silhouette refers to a method of interpretation and validation of consistency within clusters of data. The technique provides a succinct graphical representation of how well each object has been classified.[1]  
+The silhouette value is a measure of how similar an object is to its own cluster (cohesion) compared to other clusters (separation). **The silhouette ranges from −1 to +1, where a high value indicates that the object is well matched to its own cluster and poorly matched to neighboring clusters. If most objects have a high value, then the clustering configuration is appropriate.** If many points have a low or negative value, then the clustering configuration may have too many or too few clusters.  
+The silhouette can be calculated with any distance metric, such as the Euclidean distance or the Manhattan distance.
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 </body></font>
   
