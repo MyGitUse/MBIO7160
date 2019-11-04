@@ -24,6 +24,12 @@ library(pheatmap)
 library(dplyr)
 library(fpc) ; library(cluster)
 library(Hiiragi2013)
+library(clue)
+library(ggbeeswarm)
+library(mixtools)
+library(vcd)
+library(dada2) #bioconductor
+library(kernlab)
 ```
 
 
@@ -138,12 +144,12 @@ d(A,B)=\sqrt{(a_1-b_1)^2+(a_2-b_2)^2+... +(a_p-b_p)^2}.
 \end{equation*}
 </div>
   * **Weighted Euclidean** = distance by generalizing ordinary Euclidean distance. -> Assign different weights to different directions in feature space
-  * Seen in ch2. -> Chi-squared distance
-    * Used to compare rows in contingency tables & weight of each feature = inverse of expected value
-  * Mahalanobis distance -> another weighted Euclidean distance
-    * Accounts for different features having different dynamice range
-      * Some features -ve/+ve correlation w/ eachother
-    * Weights derived via covarience matrix of features (seen in first question below)
+    * Seen in ch2. -> Chi-squared distance
+      * Used to compare rows in contingency tables & weight of each feature = inverse of expected value
+    * Mahalanobis distance -> another weighted Euclidean distance
+      * Accounts for different features having different dynamice range
+        * Some features -ve/+ve correlation w/ eachother
+      * Weights derived via covarience matrix of features (seen in first question below)
   * **Manhattan/City Block/Taxicab/L1** = distance by sum of absolute differences in all coordinates  
   <button data-toggle="collapse" data-target="#c2">Manhattan</button>
 <div id="c2" class="collapse">
@@ -861,30 +867,431 @@ table(pData(x)[names(cl), "sampleGroup"], cl)
 * Q) How do results change if all feature in x used (rather than subsetting top 50 most variable genes?)
 * A)
 ```{r}
-data("x")
-selFeats1 = order(rowVars(Biobase::exprs(x)), decreasing = TRUE) #not choosing the 50 most variable genes (features) 
-embmat1 = t(Biobase::exprs(x)[selFeats1, ])
-embgap1 = clusGap(embmat1, FUN = pamfun, K.max = 24, verbose = FALSE)
-k11 = maxSE(embgap1$Tab[, "gap"], embgap1$Tab[, "SE.sim"])
-k21 = maxSE(embgap1$Tab[, "gap"], embgap1$Tab[, "SE.sim"],
-           method = "Tibs2001SEmax")
-c(k11, k21)
-plot(embgap1, main = "")
-cl1 = pamfun(embmat1, k11 = k11)$cluster
-table(pData(x)[names(cl1), "sampleGroup"], cl1)
+#data("x")
+#selFeats1 = order(rowVars(Biobase::exprs(x)), decreasing = TRUE) #not choosing #the 50 most variable genes (features) 
+#embmat1 = t(Biobase::exprs(x)[selFeats1, ])
+#embgap1 = clusGap(embmat1, FUN = pamfun, K.max = 24, verbose = FALSE)
+#k11 = maxSE(embgap1$Tab[, "gap"], embgap1$Tab[, "SE.sim"])
+#k21 = maxSE(embgap1$Tab[, "gap"], embgap1$Tab[, "SE.sim"],
+#           method = "Tibs2001SEmax")
+#c(k11, k21)
+#plot(embgap1, main = "")
+#cl1 = pamfun(embmat1, k11 = k11)$cluster
+#table(pData(x)[names(cl1), "sampleGroup"], cl1)
 ```
+<mark style="background-color:red">skipped this Q</mark>
 
 #### Cluster validation via bootstrap
+* Bootstrapping presented in CH4 - want to use subset of samples from existing data
+  * Want to apply a cluster method to each subset of data & view how stable the clustering is (or how variable)
+    * This uses an index (as explained above for validation) to compare clusters
+  * Create new datasets via taking random subsamples from data to look at different clusterings, then compare
+    * **Useful to use bootstrap resampling to infer #of clusters via gap statistic index**
+    
+* Dataset for this example - investigate hypothesis that inncer cell mass (ICM) of mouse blastocyst in embryotic day 3.5 is separated into 2 clusters, pluripotenet epiblast (EPI) & primitive endoderm (PE)
+  * The embryotic day 3.25 should not show these 2 clusterings
+  * Don't use true group labels in clusters (only use in final interpretation)
+  * Use bootstrap on 2different data sets (E3.5 & E3.25)
+    * each bootstrap will generate random subset of data to be clustered
+    * compare via consensus of many clusters
+    * use the clue package `clusterResampling()`
+    
+```{r}
+clusterResampling <- function(x, ngenes=50, k=2, B=250, prob=0.67){
+    mat = Biobase::exprs(x)
+    ce = cl_ensemble(list = lapply(seq_len(B), function(b) {
+    selSamps = sample(ncol(mat), size = round(prob * ncol(mat)),
+                      replace = FALSE)
+    submat = mat[, selSamps, drop = FALSE]
+    sel = order(rowVars(submat), decreasing = TRUE)[seq_len(ngenes)]
+    submat = submat[sel,, drop = FALSE]
+    pamres = pam(t(submat), k = k)
+    pred = cl_predict(pamres, t(mat[sel, ]), "memberships")
+    as.cl_partition(pred)
+  }))
+  cons = cl_consensus(ce)
+  ag = sapply(ce, cl_agreement, y = cons)
+  list(agreements = ag, consensus = cons)
+}
+```
 
+* This is how `clusterResampling()` works
+  1. Clue1 = take random subset of data (from original E3.25 or E3.5 data) via selecting 67% of samples _w/o replacement_
+  2. Pick top ngenes features (in subset data) based on overall variance
+  3. Clue2 = apply k-means clustering & predict cluster memberships of samples not found in subset data via distance to cluster centers (uses `cl_predict()` of clue package)
+  4. Repeat steps above B times (seq_len(B))
+  5. Use consensus clustering (`cl_consensus()`)
+  6. clueagree = Measure agreement w/ consusus via `cl_agreement()` for each B clustering. -> Good agreement value = 1, <1 = less agreement value, >1 = cluster into k classes & considered to be stable cluster which is reproducible (if low value, then no stable partition of samples into k clusters)
+  
+
+* Measure between-cluser distance for consensus clustering via **Euclidean dissimilarity of membership (sqrt of min sum of squared differences between _u_ and column permutations _v_)**
+  * u & v = cluster membership matracies
+  * For agreement measurement in step 6 (clueagree) -> quantity 1-d/m used
+    * d = Euclidean dissimilarity
+    * m = upper bound for max Euclidean dissimilarity
+    
+```{r}
+iswt <- (x$genotype == "WT")
+cr1 <- clusterResampling(x[, x$Embryonic.day == "E3.25" & iswt])
+cr2 <-clusterResampling(x[, x$Embryonic.day == "E3.5"  & iswt])
+```
+
+```{r}
+# These plots confirm hypothesis that E3.5 data has 2 clusters
+ag1 = tibble(agreements = cr1$agreements, day = "E3.25")
+ag2 = tibble(agreements = cr2$agreements, day = "E3.5")
+ggplot(bind_rows(ag1, ag2), aes(x = day, y = agreements)) +
+  geom_boxplot() +
+  ggbeeswarm::geom_beeswarm(cex = 1.5, col = "#0000ff40")
+mem1 = tibble(y = sort(cl_membership(cr1$consensus)[, 1]),
+              x = seq(along = y), day = "E3.25")
+mem2 = tibble(y = sort(cl_membership(cr2$consensus)[, 1]),
+              x = seq(along = y), day = "E3.5")
+ggplot(bind_rows(mem1, mem2), aes(x = x, y = y, col = day)) +
+  geom_point() + facet_grid(~ day, scales = "free_x")
+```
+
+> Cluster stability analysis with E3.25 and E3.5 samples. Top: beeswarm plots of the cluster agreements with the consensus, for the B clusterings; 1 indicates perfect agreement, lower values indicate lower degrees of agreement. Bottom: membership probabilities of the consensus clustering. For E3.25, the probabilities are diffuse, indicating that the individual clusterings often disagree, whereas for E3.5, the distribution is bimodal, with only one ambiguous sample.  
+
+* Computational & memory issues
+  * Computation of all comparitive distances of n objects is O(n<sup>2</sup>) opertation of time/memory
+  * Classical hierarchical clustering (`hclust()` in stats package) is O(n<sup>3</sup>) in time/memory
+  * When large n, these methods are impractical
+    * Computational complexity -> algorithm is O(n<sup>k</sup>) 
+      * if n increases = larger resource consumption (CPU time/memory) grows proportional to n<sup>k</sup>
+      * This also increases baseline costs (but lowering n also lowers power) -> this is negligible compared to when n->infinity
+    * ex) distance matrix for 1million objects stored at 8-bit would take up 4tb (if hclust algorithm ran = ~30 years process)
+  * Avoid computation of all-vs-all distance matrix via
+    * k-means uses only O(n) computations -> only keeps track of distances between each object & cluster centers (#always remains same even w/ increase n)
+    * fastclust & dbscan packages optimized to deal w/ large n observations 
 
 * **
 <p id="9"><b><font size="5">Clustering as a means for denoising</b></font><a href="#0"><sup>Return</sup></a></p>
 * **
 
+* Ex) A set of measurements reflecting some hidden true values (ex) spp. represented by DNA seqs via genomes)
+  * What if the signal of these measurements have been degraded by noise?
+  * Clustering used to remove noise
+
+* Noisy observations w/ different baseline freqs
+  * Ex) bivariate distribution of obs w/ same error variances
+    * Sampling from two groups w/ different baseline frequencies
+    * Errors are continous independent bivariate normally distributed
+    * 10<sup>3</sup> of seq1 & 10<sup>5</sup> of seq2 generated by the following code
+    
+```{r}
+seq1 = rmvnorm(n = 1e3, mu = -c(1, 1), sigma = 0.5 * diag(c(1, 1)))
+seq2 = rmvnorm(n = 1e5, mu =  c(1, 1), sigma = 0.5 * diag(c(1, 1)))
+twogr = data.frame(
+  rbind(seq1, seq2),
+  seq = factor(c(rep(1, nrow(seq1)),
+                 rep(2, nrow(seq2))))
+)
+colnames(twogr)[1:2] = c("x", "y")
+ggplot(twogr, aes(x = x, y = y, colour = seq,fill = seq)) +
+  geom_hex(alpha = 0.5, bins = 50) + coord_fixed()
+```
+
+> observed values  
+although both groups have noise distributions with the same variances, the apparent radii of the groups are very different. The 10<sup>5</sup> instances in seq2 have many more opportunities for errors than what we see in seq1, of which there are only 10<sup>3</sup>. Thus we see that frequencies are important in clustering the data.
+
+* Q) take seq1 & seq2 data then cluster into 2 groups based on distance from group center
+  * Do you think results should depend on the frequencies of each of the 2 seqs?
+* A) <mark style='background-color:yellow'>This approach is used in taxonomic clustering (OTU's) which is not optimal</mark>
+  * Because this method relies on similarities which have inherent biases in the representiveness heuristic
+    * Why is representiveness & distance-based heuristics in clustering & taxonomic assignment biased?
+      * We assign groups by looking for similar representitives (clustering/group assignment = assign new seq to group based on distance to center)
+        * ex) take balls w/ same radius (but have differences in other forms that are not considered)
+      * Problem = grouping based on distance but what about other considerations to group?
+
+* Simulate n=2000 binary variables w/ length=200 which indicates the quality of n sequencing reads
+  * Assume sequencing errors occur independent & uniformly w/ prob perr=0.001
+  * Only care if base called is correct (TRUE) or not (FALSE)
+  
+```{r}
+n <- 2000
+len <- 200
+perr <- 0.001
+seqs <- matrix(runif(n*len) >= perr, nrow=n, ncol=len)
+```
+
+* Compute pairwise distances between reads
+```{r}
+dists <- as.matrix(dist(seqs, method="manhattan"))
+```
+
+* Various values of number of reads(k from 2 to n), max distance in this set of reads computed by below code
+
+```{r}
+dfseqs = tibble(
+  k = 10 ^ seq(log10(2), log10(n), length.out = 20),
+  diameter = vapply(k, function(i) {
+    s = sample(n, i)
+    max(dists[s, s])
+    }, numeric(1)))
+ggplot(dfseqs, aes(x = k, y = diameter)) + geom_point()+geom_smooth()
+```
+
+>The diameter of a set of sequences as a function of the number of sequences.
+
+#### Denoising 16S rRNA seqs
+* Improve 16S read clustering via denoising mechanism to incorporate error probabilities
+* Uses an iterative alternating apporach (similar to EM algorithm in CH4) to build probability noise model from data 
+  * <mark style='background-color=yellow'>This is known as the de novo method</mark> = Uses clustering, cluster centers used to denoise sequence variances (Amplicon sequence variants ASVs)
+    * Once all denoised variants found -> make contingency table to of counts per different samples (CH10 shows how these tables can be used to infer properties of bacerial communties via networks & graphs)
+* Improve data quality, start w/ raw data & model all sources of variation (starting from scratch)
+
+* Q) If we have 2 seqs w/ length 200 in out sample w/ different abundances
+  * Told about technological sequencing errors occruing as independent Bernoulli(0.0005) random events for each nt
+  * What is the distribution of #of errors per seq? 
+* A) Probability theory tells that sum of 200 indepdendent Poisson(lambda=0.0005) will be Poisson(lambda=0.1)  
+  * Verify via Monte Carlo simulation
+```{r}
+simseq10K <- replicate(1e5, sum(rpois(200,0.0005)))
+mean(simseq10K)
+```
+```{r}
+vcd::distplot(simseq10K, "poisson")
+```
+
+> displot shows us how close the distribution is to being Poisson distributed.  
+
+#### Infer sequence variants
+* <mark style='background-color:yellow'>DADA method (Diverse Amplicon Denoising Algorithm) uses parametrized model for substitution errors</mark>
+  * This distinguishes seq errors from real biological variation
+  * The model computes probabilities of base substituitons (ex) seeing A instead of C)
+    * Assumes probabilties are independent of the position along sequence
+    * Error rates vary substantially betwen seq runs & PCR protocols -> model parameters estimated form data using EM-type approach
+      * Read classified as noisy or extact based upon given parameters -> updates noise model parameters per iteration
+        * In large data set, noise mdoel estimation step doesn't have to be done on the complete set [large data tips here](https://benjjneb.github.io/dada2/bigdata.html)
+        
+* Dereplicated sequences (Fwd & reverse) are read in then denoising & estimation is used w/ dada function via the following code
+```{r}
+derepFs = readRDS(here("BookStuff", "data", "derepFs.rds"))
+derepRs = readRDS(here("BookStuff", "data", "derepRs.rds"))
+
+ddF = dada(derepFs, err = NULL, selfConsist = TRUE)
+ddR = dada(derepRs, err = NULL, selfConsist = TRUE)
+```
+
+* Varify error transition rates are resonably well estimated via fitting observed error rates (black points) & fitted error rates (black lines)
+
+```{r}
+plotErrors(ddF)
+```
+
+>  Forward transition error rates as provided by plotErrors(ddF). This shows the frequencies of each type of nucleotide transition as a function of quality.
+
+* Once errors estimated -> algorithm reran on data to find ASVs
+```{r}
+dadaFs = dada(derepFs, err=ddF[[1]]$err_out, pool = TRUE)
+dadaRs = dada(derepRs, err=ddR[[1]]$err_out, pool = TRUE)
+```
+
+* **Note**
+  * Sequence inference function has two different modes
+    * Independent inference by sample (pool=FALSE)
+      * Two advantages
+        * Functions of the number of samples - linear computation time & constant memory useage
+    * Pooled inference from sequencing reads combined from all samples
+      * More computationally taxing but can improve detection of singletons (rare variants) which occur once/twice in sample but more often accross all samples
+      * Works well for small datasets
+      
+* **Sequence inference removes almost all substition and InDel errors from data**
+* Merge the inferred fwd & reverse seqs by removing paired seqs that don't have perfect overlaps = another control from residual errors 
+
+```{r}
+mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs)
+```
+
+* Now produce a contingency table of counts of ASVs (A higher resoluton analogue of the traditional OTU table)
+  * Contingency table = samples by features table -> each cell has the number of times a sequence variant is observed in each sample
+  
+```{r}
+seqtab.all <- makeSequenceTable(mergers[!grepl("Mock",names(mergers))])
+```
+
+* Q) Explore the components ofthe objects dadaRs & mergers
+* A) 
+```{r, message=F, warning=F}
+#glimpse(c(dadaRs, mergers))
+```
+
+```{r}
+#length(dadaRs)
+#length(dadaFs)
+#class(dadaRs)
+#names(dadaRs)
+#class(mergers)
+#length(mergers)
+```
+
+
+> dadaRs is a list of length 20. Its elements are objects class dada that contain the denoised reads. We will see in Chapter 10 how to align the sequences, assign their taxonomies and combine them with the sample information for downstream analyses.
+
+* Chimera sequences are artifically made during PCR amplification (concatenating >=2 sequences)
+  * Need to remove with the function `removeBimeraDenovo()` for a clean contengency table
+
+```{r}
+seqtab <- removeBimeraDenovo(seqtab.all)
+```
+
+* Q) Why are chimera sequences easy to recognize?
+  * What proportion of reads were chimeric in the seqtab.all data?
+  * What proportion of unique seq variants are chimeric?
+* Easy to recognize b/c of excessive length/merge of expected fwd & reverse reads
+  * Only 7% of all reads were observed as chimeric from sequence variants
 
 * **
 <p id="11"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
 * **
+
+#### Excercise 5.1
+
+> We can define the average dissimilarity of a point xi to a cluster Ck as the average of the distances from xi to all points in Ck . Let A(i) be the average dissimilarity of all points in the cluster that xi belongs to. Let B(i) be the lowest average dissimilarity of xi to any other cluster of which xi is not a member. The cluster with this lowest average dissimilarity is said to be the neighboring cluster of xi , because it is the next best fit cluster for point xi . The silhouette index is
+\begin{equation*}
+S(i)=\frac{B(i)-A(i)}{\max_i(A(i),B(i))}.
+\end{equation*}
+
+* 5.1a Compute the silhoutte index for the simdat data previously simulated
+
+```{r}
+pam4 = pam(simdatxy, 4)
+sil = silhouette(pam4, 4)
+plot(sil, col=c("red","green","blue","purple"), main="Silhouette")
+```
+Seems the average index caluclated from k=4 clusters is 0.51
+
+
+* 5.1b
+```{r}
+#pam4 = pam(simdatxy, 3)
+#sil = silhouette(pam4, 3)
+#plot(sil, col=c("red","green","blue","purple"), main="Silhouette")
+
+#pam4 = pam(simdatxy, 5)
+#sil = silhouette(pam4, 5)
+#plot(sil, col=c("red","green","blue","purple"), main="Silhouette")
+```
+Increasing or decreasing k clusters seems to give worse index scores, so it seems 4 is the best
+
+* 5.1c Repeat for groups w/ uniform (unclustered) data distributions over a whole range of values 
+
+```{r}
+set.seed(1234)
+simdatU = lapply(c(0, 8), function(mx) { #to list consiting of 0 & 8 - apply the function which intakes mx created in above code code (similarity section)
+  lapply(c(0,8), function(my) { #do the same to my
+    tibble(x = runif(100, min=0, max=100), #make a tibble of rnorm() numbers
+           y = runif(100, min=0, max=100),
+           class = paste(mx, my, sep = ":"))
+   }) %>% bind_rows
+}) %>% bind_rows
+simdatUXY <- simdatU[,c("x","y")]
+```
+
+```{r}
+pamU = pam(simdatUXY, 4)
+silU = silhouette(pamU, 4)
+plot(silU, col=c("red","green","blue","purple"), main="Silhouette")
+```
+
+#### Excercise 5.3
+* 5.2a Make a "character" representation of distances between the 20 locations in the dune data w/ vegan package using function `symnum()`
+
+```{r}
+data(dune)
+duned <- dist(dune, method="binary") 
+symnum(as.matrix(duned))
+```
+
+* 5.2b Make a heatmap of these distances
+```{r}
+pheatmap(as.matrix(duned))
+```
+
+#### Excercise 5.3
+
+* 5.3a Load the spiral data from kernlab package & plot results using k-means on data
+```{r}
+data(spirals)
+spiralk <- kmeans(spirals,2)
+plot(spirals, col = c("blue", "red")[spiralk$cluster])
+```
+
+> An example of non-convex clusters. On the left we show the result of k-means clustering with k=2.
+
+* 5.3b Clustering above is unsatisfactory, use a different method from package specc or dbscan to cluster spiral data
+
+```{r}
+spiralss <- specc(spirals, centers=2)
+plot(spirals, col = c("blue", "red")[spiralss])
+```
+
+* 5.3c Repeat specc clustering w/ different #groups/clusters
+```{r}
+spiralss5 <- specc(spirals, centers=5)
+plot(spirals, col = c("blue", "red", "green", "orange", "black")[spiralss5])
+```
+How rombust? Idk
+
+#### Excercise 5.4
+
+> Looking at graphical representations in simple two-dimensional maps can often reveal important clumping patterns. We saw an example for this with the map that enabled Snow to discover the source of the London cholera outbreak. Such clusterings can often indicate important information about hidden variables acting on the observations. Look at a map for breast cancer incidence in the US [here](http://www.huffingtonpost.com/bill-davenhall/post_1663_b_817254.html) (Mandal et al. 2009); the areas of high incidence seem spatially clustered. Can you guess the reason(s) for this clustering and high incidence rates on the West and East coasts and around Chicago?
+
+* Skipped
+
+#### Excercise 5.5 
+
+>Amplicon bioinformatics: from raw reads to dereplicated sequences. As a supplementary exercise, we provide the intermediate steps necessary to a full data preprocessing workflow for denoising 16S rRNA sequences. We start by setting the directories and loading the downloaded data:
+
+```{r}
+base_dir = "../BookStuff/data"
+miseq_path = file.path(base_dir, "MiSeq_SOP")
+filt_path = file.path(miseq_path, "filtered")
+fnFs = sort(list.files(miseq_path, pattern="_R1_001.fastq"))
+fnRs = sort(list.files(miseq_path, pattern="_R2_001.fastq"))
+sampleNames = sapply(strsplit(fnFs, "_"), `[`, 1)
+if (!file_test("-d", filt_path)) dir.create(filt_path)
+filtFs = file.path(filt_path, paste0(sampleNames, "_F_filt.fastq.gz"))
+filtRs = file.path(filt_path, paste0(sampleNames, "_R_filt.fastq.gz"))
+fnFs = file.path(miseq_path, fnFs)
+fnRs = file.path(miseq_path, fnRs)
+print(length(fnFs))
+```
+
+
+> The data are highly-overlapping Illumina Miseq 2×250
+ amplicon sequences from the V4 region of the 16S rRNA gene (Kozich et al. 2013). There were originally 360 fecal samples collected longitudinally from 12 mice over the first year of life. These were collected by Schloss et al. (2012) to investigate the development and stabilization of the murine microbiome. We have selected 20 samples to illustrate how to preprocess the data.  
+We will need to filter out low-quality reads and trim them to a consistent length. While generally recommended filtering and trimming parameters serve as a starting point, no two datasets are identical and therefore it is always worth inspecting the quality of the data before proceeding. We show the sequence quality plots for the two first samples in Figure 5.36. They are generated by:
+
+```{r}
+plotQualityProfile(fnFs[1:2]) + ggtitle("Forward")
+plotQualityProfile(fnRs[1:2]) + ggtitle("Reverse")
+```
+
+> Quality scores. The lines show positional summary statistics: green is the mean, orange is the median, and the dashed orange lines are the 25th and 75th quantiles.
+
+> Note that we also see the background distribution of quality scores at each position in Figure 5.36 as a grey-scale heat map. The dark colors correspond to higher frequency.
+
+#### Excercise 5.6
+* Generate similar plots for four randomly selected sets of forward and reverse reads. Compare forward and reverse read qualities; what do you notice?
+
+```{r}
+plotQualityProfile(fnFs[3:4]) + ggtitle("Forward")
+plotQualityProfile(fnRs[3:4]) + ggtitle("Reverse")
+#plotQualityProfile(fnFs[5:6]) + ggtitle("Forward")
+#plotQualityProfile(fnRs[5:6]) + ggtitle("Reverse")
+#plotQualityProfile(fnFs[7:8]) + ggtitle("Forward")
+#plotQualityProfile(fnRs[7:8]) + ggtitle("Reverse")
+#plotQualityProfile(fnFs[9:10]) + ggtitle("Forward")
+#plotQualityProfile(fnRs[9:10]) + ggtitle("Reverse")
+```
+
+The quality of the reverse reads always suck compared to the forward. Why? I would also like to know. 
+
+#### Excercise 5.7
+
+> Here, the forward reads maintain high quality throughout, while the quality of the reverse reads drops significantly at about position 160. Therefore, we truncate the forward reads at position 240, and trimm the first 10 nucleotides as these positions are of lower quality. The reverse reads are trimmed at position 160. Combine these trimming parameters with standard filtering parameters remember to enforce a maximum of 2 expected errors per-read. (Hint: Trim and filter on paired reads jointly, i.e., both reads must pass the filter for the pair to pass. The input arguments should be chosen following the dada2 vignette carefully. We recommend filtering out all reads with any ambiguous nucleotides.)
 
 * **
 <p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -899,6 +1306,32 @@ table(pData(x)[names(cl1), "sampleGroup"], cl1)
 
 
 * **arithmetic mean** = average of set of numerical values
+
+* From wiki
+
+>Silhouette refers to a method of interpretation and validation of consistency within clusters of data. The technique provides a succinct graphical representation of how well each object has been classified.[1]  
+The silhouette value is a measure of how similar an object is to its own cluster (cohesion) compared to other clusters (separation). **The silhouette ranges from −1 to +1, where a high value indicates that the object is well matched to its own cluster and poorly matched to neighboring clusters. If most objects have a high value, then the clustering configuration is appropriate.** If many points have a low or negative value, then the clustering configuration may have too many or too few clusters.  
+The silhouette can be calculated with any distance metric, such as the Euclidean distance or the Manhattan distance.
+
+```{r}
+# Wanted to know how this works - here is authors solution
+out = filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
+        maxN=0, maxEE=2, truncQ=2, rm.phix=TRUE,  trimLeft=10,
+        compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
+head(out)
+```
+```{r}
+derepFs = derepFastq(filtFs, verbose = FALSE)
+derepRs = derepFastq(filtRs, verbose = FALSE)
+names(derepFs) = sampleNames
+names(derepRs) = sampleNames
+```
+
+
+#### Excercise 5.8
+>Use R to create a map like the one shown in Figure 5.2. Hint: go to the [website of the British National Archives](http://bombsight.org/#15/51.5050/-0.0900) and download street addresses of hits, use an address resolution service to convert these into geographic coordinates, and display these as points on a map of London.
+
+* skipped
 
 </body></font>
   
