@@ -1,0 +1,158 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={MBIO7160 Project Proposal},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\providecommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{MBIO7160 Project Proposal}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+    \author{}
+    \preauthor{}\postauthor{}
+    \date{}
+    \predate{}\postdate{}
+  
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Question:} Principal component analysis (PCA) is commonly used
+  in microbiome \& mycobiome analysis with many papers not providing a
+  clear interpretation of the results. How does PCA reduce data into
+  dimensions and what is the interpretation?
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Textbook chapter of relevance: CH7 Multivariate Analysis
+  \item
+    Applications: Comparing beta-diversity between two different sets of
+    data (has many problems in itself) or variables within a single
+    study(Healthy vs Diseased)
+
+    \begin{itemize}
+    \tightlist
+    \item
+      Other applications, limitations, assumptions, alternatives: TBD
+      (to be done)
+    \end{itemize}
+  \end{itemize}
+\item
+  Proposed dataset(s)
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \href{https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA419104}{Gut
+    fungal dysbiosis correlates with reduced efficacy of fecal
+    microbiota transplantation in Clostridium difficile infection}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      Brief background: Study was performed to view differences between
+      the gut microbiome (bacterial) vs gut mycobiome (fungal) in
+      patients before and after fecal transplants to see the affect on
+      recurrent C. difficile infections. This BioProject should contain
+      sequencing data for controls + cases.
+    \end{itemize}
+  \item
+    \href{https://www.ncbi.nlm.nih.gov/bioproject/PRJNA356769/}{The gut
+    mycobiome of the Human Microbiome Project healthy cohort}
+
+    \begin{itemize}
+    \tightlist
+    \item
+      Breif background: This study wanted to see if there is a consensus
+      ``normobiota'' of the fungal mycobiome by sequencing a healthy
+      cohort and characterizing their mycobiota.
+    \end{itemize}
+  \end{itemize}
+\item
+  Project Idea (3-4 sentences)
+
+  \begin{itemize}
+  \tightlist
+  \item
+    I will take the data from
+  \end{itemize}
+\end{itemize}
+
+installr::installr() Sys.setenv(PATH = paste(Sys.getenv(``PATH''),
+``C:/Users/nmok/AppData/Local/Programs/MiKTeX 2.9/miktex/bin/x64'',
+sep=.Platform\$path.sep))
+
+
+\end{document}

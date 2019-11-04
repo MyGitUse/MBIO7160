@@ -1,0 +1,41 @@
+---
+title: "MBIO7160 Project Proposal"
+output:
+  html_document:
+    df_print: paged
+---
+
+* **Question:** Principal component analysis (PCA) is commonly used in microbiome & mycobiome analysis with many papers not providing a clear interpretation of the results. How does PCA reduce data into dimensions and what is the interpretation?
+  * Textbook chapter of relevance: CH7 Multivariate Analysis
+  * Applications: Comparing beta-diversity between two different sets of data (has many problems in itself) or variables within a single study(Healthy vs Diseased)
+    * Other applications, limitations, assumptions, alternatives: TBD (to be done)
+
+- --
+
+* Proposed dataset(s) 
+  * **Sutdy1:** [Gut fungal dysbiosis correlates with reduced efficacy of fecal microbiota transplantation in Clostridium difficile infection](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA419104)
+    * Brief background: Study was performed to view differences between the gut microbiome (bacterial) vs gut mycobiome (fungal) in patients before and after fecal transplants to see the affect on recurrent _C. difficile_ infections. This BioProject should contain sequencing data for controls + cases.
+  * **Study2:** [The gut mycobiome of the Human Microbiome Project healthy cohort](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA356769/)
+    * Brief background: This study wanted to see if there is a consensus "normobiota" of the fungal mycobiome by sequencing a healthy cohort and characterizing their mycobiota.
+    * The sequencing data from this study can be compared with study1, though this introduces a lot of inconsistencies (diet, location, age/gender match, etc.)
+    
+- -- 
+
+* Project Idea (3-4 sentences)
+  * I will take the ITS2 sequencing data from Study1's BioProject folder and analyze them using the fungal LotuS pipeline. Classification of taxons will utilize the UNITE database specific for fungal sequences, which will output a contingency table (Operational taxonomic units) with associated taxons. I can then perform PCA analysis to compare organism diversity (beta diversity) of the diseased cases & healthy control of this study (basically replicating a section of the authors results). This will allow me to visualize how PCAs are generated and how they're interpreted.
+
+- --
+
+* Feasibility
+  * Dataset: obtained 
+  * LotuS analysis: have experience, can probably generate witin a day
+  * Reference: Can refer to paper to see if my PCA results match up with theirs
+  * Statistical analysis: Need to do research (this will consume most of the time)
+
+
+  
+
+
+installr::installr()
+ Sys.setenv(PATH = paste(Sys.getenv("PATH"), "C:/Users/nmok/AppData/Local/Programs/MiKTeX 2.9/miktex/bin/x64", sep=.Platform$path.sep))
+
