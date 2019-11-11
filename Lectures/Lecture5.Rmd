@@ -1206,7 +1206,7 @@ symnum(as.matrix(duned))
 
 * 5.2b Make a heatmap of these distances
 ```{r}
-pheatmap(as.matrix(duned))
+pheatmap(as.matrix(duned), cluster_rows=F, cluster_cols=F)
 ```
 
 #### Excercise 5.3

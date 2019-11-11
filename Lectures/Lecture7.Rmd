@@ -1,0 +1,523 @@
+---
+title: "Chapter 7: Multivariate Analysis"
+output: html_notebook
+---
+
+
+```{r libraries, message=F, warning=F}
+library(here)
+library(phyloseq)
+library(SummarizedExperiment)
+library(airway) #bioconductor
+library(GGally)
+library(tidyverse)
+library(pheatmap)
+```
+
+<body>
+      <font face = "Times New Roman">
+  
+<p id="0"><u><font size="5"><b>Table of contents</b></font></u></p>  
+<a href="#1">[1]</a> Multivariate Analysis  
+<a href="#2">[2]</a> Chapter Summary  
+<a href="#3">[3]</a> What are the data? Matrices and their motivation  
+<a href="#4">[4]</a> Dimension reduction  
+<a href="#5">[5]</a> The new linear combinations   
+<a href="#6">[6]</a> The PCA workflow  
+<a href="#7">[7]</a> The inner workings of PCA: rank reduction  
+<a href="#8">[8]</a> Plotting the observations in the principal plane  
+<a href="#9">[9]</a> PCA as an exploratory tool: using extra information   
+<a href="#10">[10]</a> Excercises  
+<a href="#x">[X]</a> Misc.
+
+* **
+
+<p id="1"><b><font size="5">Multivariate Analysis </b></font><a href="#0"><sup>Return</sup></a></p>
+
+* Datasets may have multiple variables measured on same set of subjects (multidimension on one set of data)
+  * ex) Patients, samples, and organisms
+  * May have characteristic biometrics: height, weight, age, clinical variables (blood pressure, blood sugar, heart rate, genetic data) for n patients
+* Multivariate analysis allows investigation into connections/associations between different variables measured
+  * Data usually in table data structure
+    * each row = one subject
+    * each column = one variable
+      * In this example, variables are numeric (special case) -> use matrix to represent
+      * If columns of matrix are independent from each other (no relation)
+        * Can look at each column separately & use "univariate" statistics on each column -> therefore the matrix would be pointless
+        * Multivariate data = columns are assumed dependent
+* In multivariate data, there are patterns which depend on multiple variables
+  * ex) biology of cells - proliferation rate influences gene**(s)** expression which is a simultaneous effect.
+    * Study expression of 25,000 genes (columns) or many samples (rows) of patient cells = can see many genes act dependently of another (or is correlated/anti-correlated)
+    * If genes study independently via "univariate" approaches = miss a lot of info
+    * Connections between genes requires looking at the data as a whole
+      * rows = measurements made on same observational unit
+      * 25,000 columns = genes
+        * problem = 25,000 variations -> need to reduce data into smaller #dimensions w/o losing information
+* In this chapter - multivariate data matracies seen in high-throughput experiments
+  * Focus is on Principle Component Analysis (PCA) = dimension reduction method
+* **
+
+<p id="2"><b><font size="5">Chapter Summary</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **Pre-processing matracies** 
+  * Multivariate data analysis needs pre-processing
+    * Find means, variances, and 1D histograms -> then rescale and recenter data
+* **Project onto new variables**
+  * Projection onto lower dimensions of high dimensional data (planes & 3D most used)
+  * Low loss of information
+  * PCA searches for new, informative variables which are linear combos of old ones
+* **Matrix decomposition**
+  * PCA needs to find decompositions of matrix (X)
+    * SVD = decomposition method outputs lower rank approximations = to eigenanalysis of X<sup>t</sup>X
+    * Squares of single values are equal to eigen values & variences of new variables
+    * Plot these values to decide how much axes are needed to reproduce signal in data
+  * 2 Eigenvalues that are close can give high scores or **PC scores which are highly unstable**
+    * Need to look at screeplot of eigenvlaues & avoid separating axes of close eigenvalues
+    * May need interactive 3D or 4D projections (R packages)
+* **Biplot representations**
+  * Space of observations is p-dimensional space (p-original variables provide coordinates)
+    * Space of variables is in n-dimensions
+  * Decomposition methods (singular values/eigenvalue & singular vectors/eigenvectors) -> provide new coordinates for these 2 spaces
+    * Sometimes one is the dual of the other
+  * Can plot projection of both observations & variables into same eigenvectors
+    * Generates a biplot for interpreting PCA output
+* **Projecting other group variables**
+  * Can interpret PCA by redundant or contiguous data about observations
+
+
+* **
+<p id="3"><b><font size="5">What are the data? Matrices and their motivation</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* In this example, rectangular matracies represents a table w/ measurements
+  * Subjects (columns) & features (rows)
+  
+
+* Tutles data
+  * dataset used to understand principles. 3D biometric measurements on painted turtles (sex, length, width, height = 4D - compare 3 = 3D)
+  
+```{r}
+turtles <- read.table(here("BookStuff", "data", "PaintedTurtles.txt"), header=T)
+turtles[1:4,]
+```
+Last 3 columns = length measurements (mm), 1st col = factor variable sex
+
+* Athletes data
+  * Performances of 33 atheletes in 10 disciplines of decathlon: (m100, m400, m1500) times in seconds for 100m, 400m, and 1500m
+  * m110 is time to finish 110 meters hurdles
+  * pole is pole-vault height
+  * highj and long are results for high & long jumps (in meters)
+  * weight, disc, and javel are lengths in meters for throw weight, discus and javelin
+
+```{r}
+#Variables for first 3 atheletes
+load(here("BookStuff", "data", "athletes.RData"))
+unscaledAthletes <- athletes #for later use
+athletes[1:3,]
+
+```
+
+* Cell types data
+  * gene expression profiles of sorted T-cell populations from different subjects
+    * Columns are subset of gene expression measurements 
+    * Rows = 156 genes showing differential expression between cell types
+
+```{r}
+load(here("BookStuff", "data", "Msig3transp.Rdata"))
+round(Msig3transp,2)[1:5, 1:6]
+```
+
+* Bacterial species abundances data
+  * Matracies of counts used in microbial ecology studies
+    * Columns = different species (OTUs) - identified by numerical tags
+    * Rows = labeled via samples measured
+      * Integer numbers = #times each OTU observed in samples
+  * Note matrix values have many 0's == "sparse data"
+      
+```{r}
+data("GlobalPatterns", package="phyloseq")
+GPOTUs <- as.matrix(t(phyloseq::otu_table(GlobalPatterns)))
+GPOTUs[1:4, 6:13]
+```
+
+* mRNA reads data
+  * RNA-seq transcriptome data report the #seqs reads matching each gene (or sub-gene structures - exons) in several saples (More in CH8)
+  
+```{r}
+data("airway", package="airway")
+assay(airway)[1:3, 1:4]
+```
+In RNA-seq (airway data), should report the genes in rows & samples in columns - this is transposed vs the other matracies loaded (rows <-> cols)
+  * Different conventions can lead to errors so pay atttention to data 
+  
+* Proteomic Profiles
+  * Columns =  aligned mass spectroscopy peask/molecules identified through m/z-ratios
+    * Entries in matrix = measured intensities
+```{r}
+metab <- t(as.matrix(read.csv(here("BookStuff", "data", "metabolites.csv"), row.names=1)))
+metab[1:4, 1:4]
+```
+
+* When a peak is not detected for a m/z score in mass spec run = 0 recorded in metab data
+  * Similarly, 0's in GPOTUs & airway data = no matching sequence reads
+* Find the frequency of zeros in these data matricies
+```{r}
+colSums(assay(airway)==0)
+rowSums(GPOTUs)
+rowSums(metab)
+```
+
+* Q) What are the columns of these matracies usually called? 
+  * The columns of these matricies are labelled w/ numbers
+    * For airways data (RNA-seq) the columns indicate sample names b/c transposed
+  * Coulumns should indicate features/variables of the dataset
+* Q) In each of these examples, what are the rows of the matrix
+  * The rows in these datasets should indicate sample ID (except RNA-seq airways which indicates genes b/c transposed)
+* Q) What does a cell in a matrix represent
+  * A cell represents the count/frequency something appeared for that sample (row) feature (column)
+* Q) In atheletes data subset the 3rd variable (col) for the 5th athlete (row)
+```{r}
+athletes[5,3]
+```
+
+
+#### Low-dimensional data summaries & preparation
+* If studying one variable (ex) 3rd column of turtles matrix - weights) = looking at 1D data (A vector of data)
+  * Can visualize with "univariate plots" such as a histogram
+  * If computing a 1 number summary (mean or median) = zero-dimension summary of the 1D data
+  * This is an example of dimension reduction
+* In CH3 we used 2D scatterplots
+  * Saw if there are too many observations -> then group data into hexagonal bins
+    * 2D histograms
+  * When considering 2 variables (x & y) measured together on set of observation
+    * The **correlation coefficient** measures how variables co-vary
+      * This is a single #summary of 2D data - formula involves summaries x(bar) & y(bar)  
+<button data-toggle="collapse" data-target="#c1">Correlation Coefficient</button>
+<div id="c1" class="collapse">
+\begin{equation}
+\hat{\rho}=
+\frac{\sum_{i=1}^n (x_i-\bar{x})(y_i-\bar{y})}
+{\sqrt{\sum_{i=1}^n (x_i-\bar{x})^2}
+\sqrt{\sum_{j=1}^n (y_j-\bar{y})^2}}
+\tag{7.1}
+\end{equation}
+</div>
+
+* In R - use `cor()` function to calculate correlation coefficient
+  * When applied to a matrix, this calculates all 2way correlations between <u>continous variables</u> (more in CH9)
+  
+* Q) Compute the matrix of all correlations between the measurements from turtles data - what do you notice?
+```{r}
+cor(turtles[,-1]) #remove categorical variable to calculate other columns
+```
+* A) The square matrix is symmetric & all values close to 1 (diagonal values always 1)
+
+* Beneficial to start multidimensial analysis by checking simple 1D & 2D summary statistics & make visual displays (such as below 2 questions)
+
+* Q) Produce pairwise scatter plots & 1D histograms on the diagonal for turtles data (Use GGally package). & Guess underlying/"true dimension" of the data
+* A) 
+```{r}
+ggpairs(turtles[,-1], axisLabels="none")
+```
+>All pairs of bivariate scatterplots for the three biometric measurements on painted turtles.
+
+All 3 variables mostly reflect same "underlying" variable (maybe size of the turtle)
+
+
+* Q) Make pairs plot on athletes data - what do you notice?
+```{r}
+pheatmap(cor(athletes), cell.width=10, cell.height=10)
+```
+>Heatmap of correlations between variables in the athletes data. Higher values are color coded red-orange. The hierarchical clustering shows the grouping of the related disciplines.
+
+Shows hierarchical clustering of variables -> clusters into 3 groups (running, throwing, jumping)
+
+#### Pre-processing data
+* Different variables (columns) may be measured using different units = different baselines & scales -> not directly comparable in this form
+  * Common measures of scales are range & standard dev
+  * ex) athletes data has measuremens in seconds & metres
+    * choice is arbritary (time = secs or milisec, lengths = cm or feet)
+* PCA & other methods require transformation to numeric values w/ common scale for comparisons
+   * **Centering** = subtract mean, making the mean of centered data as origin
+   * **Scaling/Standardizing** = Divide by standard deviation to make new std as 1
+     * Centering & Scaling encountered when computing correlation coefficient
+       * **Correlation Coefficient** = vector product of centered & scaled variables
+     * Use the `scale()` function for centering and scaling
+       * default behaviour when given matrix/dataframe = make each column have a mean & std of 1
+      
+* Q) Compute means & std of turtle data & use scale function to center+standardize continous variables (name this scaledTurtles) - verify new values for mean & std of scaledTurtles
+* A)
+
+```{r}
+apply(turtles[,-1],2,mean)
+apply(turtles[,-1],2,sd)
+scaledTurtles <- scale(turtles[,-1])
+apply(scaledTurtles,2,mean)
+apply(scaledTurtles,2,sd)
+```
+
+* Q) Make a scatterplot of scaled & centered width + height variables of turtle data -> color points by sex
+```{r}
+data.frame(scaledTurtles, sex=turtles[,1]) %>% 
+  ggplot(aes(x=width, y=height, group=sex)) +
+  geom_point(aes(color=sex)) + coord_fixed()
+```
+> Turtles data projected onto the plane defined by the width and height variables: each point colored according to sex.
+
+* Have encountered data transformation choices in CH4 & 5
+  * Used log & asinh functions -> used for variance stabiliztion (make variance of replicate measurements of one & same variable in different parts of its dynamic range more similar)
+  * Standardizing transformation used here -> make scale of different variables the same (measured by mean & stv)
+  
+* May be preferable to leave variables at different scales depending on data (might be important)
+  * If original scale for data is important, then leave data as is
+* Some data variables have different percisions = priori (More in CH9 - weighting these variables)
+
+* After pre-processing data -> can use data simplification via data reduction
+
+* **
+<p id="4"><b><font size="5">Dimension reduction</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* Many different perspectives
+  * Invented to reduce 2-variable scatterplot -> single coordinate
+  * Used to summarize batched psychological tests ran on same subjects
+
+* Provides overall scores to summarize many test-variables at once
+  * PCA is a **unsupervised learning technique** (so is clustering)
+    * Treats all variables as having the same status
+    * Not trying to predict/explain one vatiable's value from others
+      * Uses mathematical modeling to find stucture for all variables (columns)
+    * Exploratory technique to map & show relations between variables + observations
+    
+* Usually suppose to use linear algebra methods but textbok tried to lower the use & focus on visualizations+data
+  * Textbook uses geometrical projections -> take pts in higher-dimension spaces and projects onto lower dimensions
+  
+<center><img src="http://web.stanford.edu/class/bios221/book/figure/chap8-projectv-1.png"  width="250" height="250"></center>
+
+>Point A is projected onto the red line generated by the vector v. The dashed projection line is perpendicular (or orthogonal) to the red line. The intersection point of the projection line and the red line is called the orthogonal projection of A onto the red line generated by the vector v.
+  
+* <mark style='background-color:yellow'>PCA is a linear technique, which means it looks for linear-relationships between variables</mark> (f(ax+by)=af(x)+b(y))
+  * Linear constraints decreases computational requirements (non-linear in CH9)
+
+#### Lower-dimensional projections
+
+```{r}
+# One way of projecting 2D data onto line via athletes data
+athletes <- data.frame(scale(athletes))
+ath_gg <- ggplot(athletes, aes(x = weight, y = disc)) + geom_point(size=2, shape=21)
+ath_gg + geom_point(aes(y=0), colour="red") + geom_segment(aes(xend=weight, yend=0), linetype="dashed")
+```
+> Scatterplot of two variables showing the projection on the horizontal x axis (defined by y = 0 ) in red and the lines of projection appear as dashed.
+
+* Task
+  * a) Calculate the variance of the red points in the above figure
+  * b) Make a plot showing projection lines onto y-axis & projected points
+  * c) compute the variance of the points projected onto y-axis
+
+* a) 
+```{r}
+var(athletes$weight)
+```
+
+* b)
+```{r}
+ath_gg1 <- ggplot(athletes, aes(x = weight, y = disc)) + geom_point(size=2, shape=21)
+ath_gg + geom_point(aes(x=0), colour="red") + geom_segment(aes(xend=0, yend=disc), linetype="dashed")
+```
+
+* c)
+```{r}
+var(athletes$disc)
+```
+
+#### How to summarize 2D data by a line? 
+* Lose info about points when projected from 2D (plane) -> 1D (line)
+  * If we do this by using original coordinates (as above scatter plot on athelete$weight) -> lose info about disc variable
+  * <mark style='background-color:yellow'>Goal is to keep info about both variables</mark>
+  
+* Many ways to project point cloud onto a line (ex) regression lines)
+
+* **Regressing one variable on the other**
+  * Linear regression - lines that summarize scatter plot
+    * **supervised method** which prefers minimizing the residual sum of squares in one direction (the response variable)
+    
+* **Regression of disc variable on weight of athletes data**
+  * `lm()` linear model function to find regression line
+    * Slope and intercept given by values in coefficients of resulting object reg1
+
+```{r}
+reg1 <- lm(disc~weight, data=athletes)
+a1 <- reg1$coefficients[1] #this is intercept
+b1 <- reg1$coefficients[2] #this is slope
+pline1 <- ath_gg + geom_abline(intercept=a1, slope=b1, col="blue", lwd=1.5)
+pline1 + geom_segment(aes(xend=weight, yend=reg1$fitted), colour="red", arrow=arrow(length=unit(0.15,"cm"))) 
+```
+> The blue line minimizes the sum of squares of the vertical residuals (in red).
+
+* **Regression of weight on discus**
+```{r}
+# Produces line by reversing roles of 2 vars (weight -> response variable)
+reg2 <- lm(weight ~ disc, data=athletes) #note weight becomes y = response
+a2 <- reg2$coefficients[1] #intercept
+b2 <- reg2$coefficients[2] #slope
+pline2 <- ath_gg + geom_abline(intercept=-a2/b2, slope=1/b2, col="darkgreen", lwd=1.5)
+pline2 + geom_segment(aes(xend=reg2$fitted, yend=disc), colour="orange", arrow=arrow(length(unit(0.15, "cm"))))
+```
+> The green line minimizes the sum of squares of the horizontal residuals (in orange)
+
+* Each of the shown regression lines is an approximate linear relationship between disc & weight of athletes data
+  * Relationship differs depending on which variables chosen to be predictor & which is response
+  
+* Q) How large is variance of projected points that lie on blue regression line above? Compare to variance of the data when projected on original axes disc and weight
+* A) Pyrhagoras' theorem shows squared length of hypotenuse of right-angled triangle is = to sum of squared lengths of the 2other sides
+```{r}
+var(athletes$weight) + var(reg1$fitted)
+```
+Variences of points on the original axes weight & disc are 1 (scaled variables)
+
+* **Line minimizing distances in both directions**
+  * Line chosen to minimize sum of squares of orthagonal (perpendicular) projections of data pts = **principle component line**
+```{r}
+xy <- cbind(athletes$disc, athletes$weight)
+svda <- svd(xy)
+pc = xy %*% svda$v[, 1] %*% t(svda$v[, 1])
+bp = svda$v[2, 1] / svda$v[1, 1]
+ap = mean(pc[, 2]) - bp * mean(pc[, 1])
+ath_gg + geom_segment(xend = pc[, 1], yend = pc[, 2]) +
+  geom_abline(intercept = ap, slope = bp, col = "purple", lwd = 1.5)
+```
+> The purple principal component line minimizes the sums of squares of the orthogonal projections.
+
+* Q) a) What particular about the slope of the purple line? <br> b) Redo the plots on the orignal(unscaled) variables - what happens?</br>
+* A) Lines computed depends on choice of units. Made stdev equal for both variables -> PCA line is diagonal cutting through middle of both regression lines
+  * Data was centered via subtracting means = line passes through origin (0,0)
+```{r}
+xy1 <- cbind(unscaledAthletes$disc, unscaledAthletes$weight)
+svda1 <- svd(xy1)
+pc1 = xy1 %*% svda1$v[, 1] %*% t(svda1$v[, 1])
+bp1 = svda1$v[2, 1] / svda1$v[1, 1]
+ap1 = mean(pc1[, 2]) - bp1 * mean(pc1[, 1])
+ath_gg + geom_segment(xend = pc1[, 1], yend = pc1[, 2]) +
+  geom_abline(intercept = ap1, slope = bp1, col = "purple", lwd = 1.5)
+```
+
+* Q) Compute variance of points on the purple line
+* A) Coordinates of points computer when plot was made (in pc vector)
+```{r}
+apply(pc, 2, var)
+sum(apply(pc,2,var))
+```
+Variences along this axis is longer vs other variences calculated in the previous Pythagoras question
+
+<center><img src="http://web.stanford.edu/class/bios221/book/figure/chap8-chap8-r-PCAR1R2-1-1.png"  width="250" height="250"></center>
+> 3 ways of fitting a line: The blue line minimizes the sum of squares of the vertical residuals, the green line minimizes the horizontal residuals, the purple line, called the principal component, minimizes the orthogonal projections. Notice the ordering of the slopes of the three lines.
+
+* Pythagoras' theorem tells 2 things
+  * If minimize both horizontal/vertical directions -> minimizing the orthagonal projections onto line from each pt
+  * Total variability of pts measured by sum of squares of the projection of the pts onto center = origin (0,0) if data is centered
+    * Can decompose into sum of squares of projections onto line + variances along the line
+    * For fixed variance, minimizing projection distances -> maximizes variance along the line
+    * Define first principal component -> line w/ max variance
+
+* **
+<p id="5"><b><font size="5">The new linear combinations</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* PC line previously found can be written as 
+
+\begin{equation}
+PC= \frac{1}{2} \mbox{disc} + \frac{1}{2} \mbox{weight}.
+\tag{7.2}
+\end{equation}
+
+* PCs are linear combinations of variables which was originally measured -> provide new coordinates
+  * Understanding linear combination (analogy)
+    * Make healthy juice, need a recipe like the following
+    
+\begin{equation*}
+V = 2 \times \text{Beet} + 1 \times \text{Carrot} +
+\frac{1}{2} \text{Gala} +
+\frac{1}{2} \text{GrannySmith} +
+0.02 \times \text{Ginger} +
+0.25 \times \text{Lemon}.
+\end{equation*}
+
+* This recipe is a linear combination of individual juice types (original variables) which result in new variable (V) w/ coefficients (2, 1, 0.5, 0.5, 0.02, 025) AKA loadings
+
+* Q) How would you calculate the calories of the juice?
+* A) IDK
+
+#### Optimal lines
+* Linear combination of variables define a line in higher dimensions, same as constructing lines in a scatterplot plane (2D)
+  * Many ways to choose lines to project data but there is a "best line"
+    * Total variance of all points in all variables can be de-decomposed
+    * PCA -> total sums of squares distances between points & any line can be decomposed into distances to line & variance along line
+* PC (variable calculated above for line question) minimizes distance to line & maximizes variance of projections along line
+* Why maximize variance along line? - see following example of 3D -> 2D
+
+* Q) Which of the 2 projections do you find more informative? 
+<center><img src="http://web.stanford.edu/class/bios221/book/images/CAM3.png"  width="250" height="250"><img src="http://web.stanford.edu/class/bios221/book/images/CAM4.png"  width="250" height="250"></center>
+* A) Author states the projection minimizing the area of the shadow is more informative
+
+* **
+<p id="6"><b><font size="5">The PCA workflow</b></font><a href="#0"><sup>Return</sup></a></p>
+
+<center><img src="http://web.stanford.edu/class/bios221/book/images/orgacp1.png"  width="250" height="500"></center>
+
+* PCA is based on finding axis w/ largest variability, removing the variability in that direction, and iterating to find next best orthogonal axis
+  * Don't have to run iterations -> all axes can be found via **Singular Value Decomposition (SVD)**
+  
+* In figure above
+  1) Calculate means and variances
+  2) Pick to work with rescaled covariences (correlation matrix) or not
+  3) Pick _k_, number of components relevant to data
+    * k = rank of the approximation chosen - give careful explaination of how choice is made
+* Impossible to choose #of components before doing analysis (unlike clustering)
+  * Choice of k needs visualization of the plot of <u>variances</u> & successive principal components before projecting the data
+* End result of PCA workflow = useful maps for variables & samples
+  * Understanding how maps are made will decrease information needed
+
+* **
+<p id="7"><b><font size="5">The inner workings of PCA: rank reduction</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+<p id="8"><b><font size="5">Plotting the observations in the principal plane</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+<p id="9"><b><font size="5">PCA as an exploratory tool: using extra information </b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+<p id="10"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
+
+
+* **
+
+<p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
+
+*Run* = *Ctrl+Shift+Enter*  
+*Insert Chunk* =*Ctrl+Alt+I*  
+*Preview*=*Ctrl+Shift+K*
+
+> [Unsupervised learning](https://www.mathworks.com/discovery/unsupervised-learning.html) is a type of machine learning algorithm used to draw inferences from datasets consisting of input data without labeled responses.
+
+>[Supervised learning](https://www.mathworks.com/discovery/supervised-learning.html?s_tid=srchtitle) is a type of machine learning algorithm that uses a known dataset (called the training dataset) to make predictions. The training dataset includes input data and response values. From it, the supervised learning algorithm seeks to build a model that can make predictions of the response values for a new dataset. Using larger training datasets and optimizing model hyperparamamters can often increase the model’s predictive power and ensure that it can generalize well for new datasets. A test dataset is often used to validate the model.
+
+* Discretization
+  * Take continous functions/variables & transform into discrete functions/variables
+  * 1st step in many types of analysis b/c discrete data easier to analyze
+  * Theory
+    * Process of discretization
+      * Analyze continous values for variables
+      * Divide into segments
+      * Group into bins
+        * Need to know how to select for #bins & how wide bins should be
+  * Certain amount of error introducted per discretization
+    * goal is to minimize error when choosing #bins & width
+    * soluton: increase #intervals for division of function/variable
+      * problem: increase intervals = less discretization
+      * "what is min# intervals that can be used to divide to get ~accurate results"
+  * Types
+    * Statistic variable discretization = Discretize one variable at a time (most common)
+    * Dynamic variable discretization = discrete all variables simultaneously. Need to keep track of independent interactiosn between variables
+    * Unsupervised discretization algorithms = simplest algorithms, specify one parameter (#intervals to use or how many values per interval)
+    * Supervised discretization algorithms = don't specify #bins, based on entropy and purity calculations
+
+</body>
+  
