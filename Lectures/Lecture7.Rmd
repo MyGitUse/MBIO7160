@@ -454,7 +454,9 @@ V = 2 \times \text{Beet} + 1 \times \text{Carrot} +
 
 * Q) Which of the 2 projections do you find more informative? 
 <center><img src="http://web.stanford.edu/class/bios221/book/images/CAM3.png"  width="250" height="250"><img src="http://web.stanford.edu/class/bios221/book/images/CAM4.png"  width="250" height="250"></center>
-* A) Author states the projection minimizing the area of the shadow is more informative
+* A) Author states the projection minimizing the area of the shadow is more informative (the 2nd image of a clear camel)
+  * Choosing the perspective w/ maximal spread (variance) of points = more information
+  * Want to see highest variation as possible (PCA)
 
 * **
 <p id="6"><b><font size="5">The PCA workflow</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -476,7 +478,397 @@ V = 2 \times \text{Beet} + 1 \times \text{Carrot} +
 
 * **
 <p id="7"><b><font size="5">The inner workings of PCA: rank reduction</b></font><a href="#0"><sup>Return</sup></a></p>
+* This section may require a background in linear algebra (even if faint)
+  * Provides insight into SVD method used for PCA
+* SVD (singular value decomposition) of a matrix is used to find horizontal & vertical vectors (singular vectors) & normalizing values (singular values)
 
+#### Rank-one matricies
+* Simple generative model shows the meaning of rank of a matrix & how to find it
+  * Suppose 2 vectors (_u_ = a one column matrix)
+  * Suppose v<sup>t</sup>=t(v) (a one row matrix - transposed from one column matrix v)
+  * Multiply a copy of _u_ by each elements of v<sup>t</sup> looks like the following
+  
+* Step1
+
+|X|2|4|8|
+|---|---|---|---|
+1| | | |
+2| | | |
+3| | | |
+4| | | |
+
+* Step2
+
+|X|2|4|8|
+|---|---|---|---|
+1|2| | |
+2|4| | |
+3|6| | |
+4|8| | |
+
+* Step3
+
+|X|2|4|8|
+|---|---|---|---|
+1|2|4| |
+2|4|8| |
+3|6|12| |
+4|8|16| |
+
+* Step4
+
+|X|2|4|8|
+|---|---|---|---|
+1|2|4|8|
+2|4|8|16|
+3|6|12|24|
+4|8|16|32|
+
+* Matrix X here is said to be rank-1 b/c _u_ and _v_ both have one column  
+
+<button data-toggle="collapse" data-target="#c2">column vectors u & v</button>
+<div id="c2" class="collapse">
+
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+  <mi>u</mi>
+  <mo>=</mo>
+  <mrow>
+    <mo>(</mo>
+    <mstyle scriptlevel="1">
+      <mtable rowspacing=".2em" columnspacing="0.333em" displaystyle="false">
+        <mtr>
+          <mtd>
+            <mn>1</mn>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mn>2</mn>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mn>3</mn>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mn>4</mn>
+          </mtd>
+        </mtr>
+      </mtable>
+    </mstyle>
+    <mo>)</mo>
+  </mrow>
+</math> 
+
+&
+
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+  <mi>v</mi>
+  <mo>=</mo>
+  <mrow>
+    <mo>(</mo>
+    <mstyle scriptlevel="1">
+      <mtable rowspacing=".2em" columnspacing="0.333em" displaystyle="false">
+        <mtr>
+          <mtd>
+            <mn>2</mn>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mn>4</mn>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mn>8</mn>
+          </mtd>
+        </mtr>
+      </mtable>
+    </mstyle>
+    <mo>)</mo>
+  </mrow>
+</math>
+
+The transpose of v is written v<sup>t</sup>= t(v)=(2 4 6 8).  
+
+The (2, 3) entry of the matrix X, written x<sub>2, 3</sub>, is obtained by multiplying u<sub>2</sub> by v<sub>3</sub>. We can write this
+
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+  <mi>X</mi>
+  <mo>=</mo>
+  <mrow>
+    <mo>(</mo>
+    <mtable rowspacing="4pt" columnspacing="1em">
+      <mtr>
+        <mtd>
+          <mn>2</mn>
+        </mtd>
+        <mtd>
+          <mn>4</mn>
+        </mtd>
+        <mtd>
+          <mn>8</mn>
+        </mtd>
+      </mtr>
+      <mtr>
+        <mtd>
+          <mn>4</mn>
+        </mtd>
+        <mtd>
+          <mn>8</mn>
+        </mtd>
+        <mtd>
+          <mn>16</mn>
+        </mtd>
+      </mtr>
+      <mtr>
+        <mtd>
+          <mn>6</mn>
+        </mtd>
+        <mtd>
+          <mn>12</mn>
+        </mtd>
+        <mtd>
+          <mn>24</mn>
+        </mtd>
+      </mtr>
+      <mtr>
+        <mtd>
+          <mn>8</mn>
+        </mtd>
+        <mtd>
+          <mn>16</mn>
+        </mtd>
+        <mtd>
+          <mn>32</mn>
+        </mtd>
+      </mtr>
+    </mtable>
+    <mo>)</mo>
+  </mrow>
+  <mo>=</mo>
+  <mi>u</mi>
+  <mo>&#x2217;<!-- ∗ --></mo>
+  <mi>t</mi>
+  <mo stretchy="false">(</mo>
+  <mi>v</mi>
+  <mo stretchy="false">)</mo>
+  <mo>=</mo>
+  <mi>u</mi>
+  <mo>&#x2217;<!-- ∗ --></mo>
+  <msup>
+    <mi>v</mi>
+    <mi>t</mi>
+  </msup>
+</math>
+
+>Note - row X col (v<sup>t</sup> * u)
+
+</div>
+
+* Q) Why can we say X=u*v<sup>t</sup> is better than spelling out the whole matrix?
+* A) If we wanted to reverse the process & simplify another matrix X. Can we express it in a similar way as a product of vectors w/o loss of info? 
+
+* Q) decompose this matrix
+
+\begin{equation}
+\begin{array}{rrrrr}
+\hline
+{\large X} & x_{.1} &  x_{.2} &  x_{.3} &  x_{.4} \\
+\hline
+x_{1.} & 780 & 936 & 1300 & 728\\
+x_{2.} &  75 &  90 &  125 &  70\\
+x_{3.} & 540 & 648 &  900 & 504\\
+\hline
+\end{array}
+
+\tag{7.3}
+\end{equation}
+
+* X has been redrawn as a series of rectangles as follows (coloured boxes = areas proportional to numbers in cells of the matrix)
+
+<center><img src="http://web.stanford.edu/class/bios221/book/images/SVD-mosaicXplot0.png"  width="250" height="250"></center>
+
+> Some special matrices have numbers in them that make them easy to decompose. Each colored rectangle in this diagram has an area that corresponds to the number in it.
+
+* What numbers can we put in the white _u_ & _v_ boxes so the values of the sides of the rectangle give the numbers as their products?
+  * A matrix w/ special property of being perfect "rectangular" (ex) matrix X) said to be rank-1
+  * Can represent the numbers in X by areas of rectangles - sides of rectangles are given by values in side vectors (_u_ & _v_)
+  
+<center><img src="http://web.stanford.edu/class/bios221/book/images/SVD-mosaicXplot1.png"  width="250" height="250">
+<img src="http://web.stanford.edu/class/bios221/book/images/SVD-mosaicXplot2.png"  width="250" height="250">
+<img src="http://web.stanford.edu/class/bios221/book/images/SVD-mosaicXplot3.png"  width="250" height="250"></center>
+
+> The numbers in the cells are equal to the product of the corresponding margins in (A), (B) and (C). We could make the cells from products in several ways. In (C) we force the margins to have norm 1 .
+
+* Decomposition of X is not unique, there are several candidates for vectors _u_ & _v_ (3 different ways to get area of rectangles as above)
+  * Choose marginal vectors so each vector has the coordinats **sum of squares add to 1** (vectors _u_ and _v_ have norm1)
+  * Keep track of one extra number (#used to multiply each of the products & represents "overall scale" of X)
+    * This is the #in the white box at the upper left corner of matrix 3 above (2348.3) = **singular value s1**
+    
+* In this R-code, start by assuming values in _u_, _v_, and s1 is known
+  * Will show a function to find these values later
+  
+```{r}
+#Check multiplication & norm properties
+
+X = matrix(c(780,  75, 540,
+             936,  90, 648,
+            1300, 125, 900,
+             728,  70, 504), nrow = 3)
+u = c(0.8196, 0.0788, 0.5674)
+v = c(0.4053, 0.4863, 0.6754, 0.3782)
+s1 = 2348.2
+sum(u^2)
+sum(v^2)
+s1*u %*% t(v) #note find out what %*% does later
+X-s1*u %*% t(v)
+```
+
+* Q) Try svd(X) and look for components of the output of `svd()` function
+  * Check norm of the columns of the matracies that result from this
+  * Where did the value s1=2348.2 come from?
+* A)
+```{r}
+svd(X)$u[, 1]
+svd(X)$v[, 1]
+sum(svd(X)$u[, 1]^2)
+sum(svd(X)$v[, 1]^2)
+svd(X)$d
+```
+
+* In this case, can see the 2nd & 3rd singular values are 0 (not looking at decimals)
+  * This is why we say matrix X is rank-1 
+* Usually in other matricies X, it is rare to write X as this two-vector product
+  * Next shown, how to decompose X when it is not rank-1
+  
+#### How do we find such a decomposition in a unique way?
+* Above decomposition = 3elements (horizontal, vertical, single vectors, and diagonal corner(singular value))
+  * Can find these via singular value decomposition function (svd)
+```{r}
+#example
+
+Xtwo = matrix(c(12.5, 35.0, 25.0, 25, 9, 14, 26, 18, 16, 21, 49, 32,
+       18, 28, 52, 36, 18, 10.5, 64.5, 36), ncol = 4, byrow = TRUE)
+USV = svd(Xtwo)
+```
+
+* Q) Look at USV object (result from svd() function). What are the components?
+* A)
+```{r}
+names(USV)
+USV$d
+```
+135.1 is the first singular value in USV$d[1] (1.351*e02)
+
+* Q) Check how each succesive pair of singular vectors improves approximation of Xtwo. What do you notice about the 3rd & 4th singular values?
+
+```{r}
+Xtwo - USV$d[1] * USV$u[, 1] %*% t(USV$v[, 1])
+Xtwo - USV$d[1] * USV$u[, 1] %*% t(USV$v[, 1]) -
+       USV$d[2] * USV$u[, 2] %*% t(USV$v[, 2])
+```
+
+* 3rd & 4th values are small, don't improve approximation -> conclude Xtwo is rank-2
+
+* Many ways to write rank-2 matrix (ex) Xtwo) as sum of rank-1 matrix
+  * in order to ensure uniqueness, we add another condition to the singular vectors (above used norm of vectors=1)
+* Output vectors of singular decomposition don't have only norms=1
+  * each vector in U matrix is ortogonal to all previous
+  * Same for V matrix (\begin{equation}u_{\bullet 1} \perp u_{\bullet 2}\end{equation} -> sum of products of values in the same positons is 0) \begin{equation}\sum_i u_{i1} u_{i2} = 0\end{equation}
+
+* Task: Check ortonormality by computing cross product of U & V matracies
+```{r}
+t(USV$u) %*% USV$u
+t(USV$v) %*% USV$v
+```
+
+* Submit rescaled turtles matrix to SVD
+```{r}
+turtles.svd = svd(scaledTurtles)
+turtles.svd$d
+turtles.svd$v
+dim(turtles.svd$u)
+```
+
+* Q) What can be concluded from tutles matrix resulting svd output?
+* A) 1st column of turtles.svd$v shows coefficients for 3 variables which are ~equal
+  * Other noticeable coincidences
+```{r}
+sum(turtles.svd$v[,1]^2)
+sum(turtles.svd$d^2) / 47
+```
+Coefficients are srt(1/3) & sum of squares of the singular values is = (n-1)xp
+
+#### **Singular value decomposition** 
+* X is decomposed <u>additively</u> into rank-1 pieces
+  * Each _u_ vectors is combined into U matrix
+  * Each _v_ vectors is combined into V matrix
+* SVD is 
+
+\begin{equation}
+{\mathbf X} = U S V^t, V^t V={\mathbb I}, U^t U={\mathbb I},
+\tag{7.4}
+\end{equation}
+
+* Where
+  * S = diagonal matrix of singular values
+  * V<sup>t</sup> is the transposed V
+  * I = Identity matrix
+* Can rewite element-wise as 
+
+\begin{equation*}
+X_{ij} = u_{i1}s_1v_{1j} +  u_{i2}s_2v_{2j} + u_{i3}s_3v_{3j} +... +
+u_{ir}s_rv_{rj},
+\end{equation*}
+
+* U & V are said to be orthonormal (norm=1 - not related to normal distribution) b/c self-crossproducts are identity matrix
+
+#### Princial components
+* Singular vectors from the SVD (`svd()`) contain coefficents to put in front of original variables to make more informative = Principal component
+  * Written as 
+
+\begin{equation*}
+Z_1=c_1 X_{\bullet 1} +c_2 X_{\bullet 2}+ c_3 X_{\bullet 3}+\cdots c_p X_{\bullet p}.
+\end{equation*}
+
+* If usv=svd(X), then (c1, c2, c3, ...) given by 1st column of usv$v
+  *New variables Z1,Z2,Z3,... will have variences decreasing in size \begin{equation}s_1^2 \geq s_2^2 \geq s_3^2 \geq ...\end{equation}
+  
+* Q) Compute 1st PC for turtles data by multiplying by 1st singular value of usv$d[1] by usv$u[,1]. What is another way of computing it?
+* A) 
+```{r}
+turtles.svd$d[1] %*% turtles.svd$u[,1]
+scaledTurtles %*% turtles.svd$v[,1]
+```
+
+Matrix multiplications can show that XV & US are the same
+  * Remember V is orthogonal (so V<sup>t</sup>V = I & XV=USV<sup>t</sup>V=USI)
+  
+* If lost about which output matracies to deal with, think of dimension of PCs
+  * each C=(c1,c2,...,cp) is of length n (#of observations)
+  * n is also the number of rows of each of the vectors X1, X2,..,Xp
+* 2 useful facts
+  * ?? always chosen to be less than # of original variables or #of observations
+    * Lowering the dimension problem: 
+  
+  \begin{equation*}
+k\leq \min(n,p)
+\end{equation*}
+
+* **PC Transformation**
+  * 1st PC has the largest varience (accounts for most vatiability in data as possible)
+  * Each successive PC has highest varience possible
+    * Constrained due to having to be ortogonal to preceeding components
+    
+\begin{equation*}
+\max_{aX \perp bX}\mbox{var}(\mbox{Proj}_{aX} (X)), \qquad \mbox{where } bX=\mbox{previous components}
+\end{equation*}
+
+  
 * **
 <p id="8"><b><font size="5">Plotting the observations in the principal plane</b></font><a href="#0"><sup>Return</sup></a></p>
 
