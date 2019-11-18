@@ -39,5 +39,3 @@ output:
 installr::installr()  
  Sys.setenv(PATH = paste(Sys.getenv("PATH"), "C:/Users/nmok/AppData/Local/Programs/MiKTeX 2.9/miktex/bin/x64", sep=.Platform$path.sep))
 
-
-SRA > check all boxes > send to > file > accession list > List of SRA accession > upload file

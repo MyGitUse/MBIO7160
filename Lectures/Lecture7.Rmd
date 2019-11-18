@@ -5,13 +5,15 @@ output: html_notebook
 
 
 ```{r libraries, message=F, warning=F}
-library(here)
-library(phyloseq)
-library(SummarizedExperiment)
-library(airway) #bioconductor
-library(GGally)
-library(tidyverse)
-library(pheatmap)
+  library(here)
+  library(phyloseq)
+  library(SummarizedExperiment)
+  library(airway) #bioconductor
+  library(GGally)
+  library(tidyverse)
+  library(pheatmap)
+  library(factoextra)
+  library(ade4)
 ```
 
 <body>
@@ -55,6 +57,7 @@ library(pheatmap)
         * problem = 25,000 variations -> need to reduce data into smaller #dimensions w/o losing information
 * In this chapter - multivariate data matracies seen in high-throughput experiments
   * Focus is on Principle Component Analysis (PCA) = dimension reduction method
+    
 * **
 
 <p id="2"><b><font size="5">Chapter Summary</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -89,7 +92,7 @@ library(pheatmap)
 <p id="3"><b><font size="5">What are the data? Matrices and their motivation</b></font><a href="#0"><sup>Return</sup></a></p>
 
 * In this example, rectangular matracies represents a table w/ measurements
-  * Subjects (columns) & features (rows)
+  * Subjects (rows) & features (columns)
   
 
 * Tutles data
@@ -122,7 +125,7 @@ athletes[1:3,]
     * Rows = 156 genes showing differential expression between cell types
 
 ```{r}
-load(here("BookStuff", "data", "Msig3transp.Rdata"))
+load(here("BookStuff", "data", "Msig3transp.RData"))
 round(Msig3transp,2)[1:5, 1:6]
 ```
 
@@ -146,7 +149,7 @@ GPOTUs[1:4, 6:13]
 data("airway", package="airway")
 assay(airway)[1:3, 1:4]
 ```
-In RNA-seq (airway data), should report the genes in rows & samples in columns - this is transposed vs the other matracies loaded (rows <-> cols)
+In RNA-seq (airway data), should report the <u>genes in rows & samples in columns</u> - this is transposed vs the other matracies loaded (rows <-> cols)
   * Different conventions can lead to errors so pay atttention to data 
   
 * Proteomic Profiles
@@ -229,7 +232,7 @@ pheatmap(cor(athletes), cell.width=10, cell.height=10)
 ```
 >Heatmap of correlations between variables in the athletes data. Higher values are color coded red-orange. The hierarchical clustering shows the grouping of the related disciplines.
 
-Shows hierarchical clustering of variables -> clusters into 3 groups (running, throwing, jumping)
+Shows hierarchical clustering of variables (dendogram trees) -> clusters into 3 groups (running, throwing, jumping)
 
 #### Pre-processing data
 * Different variables (columns) may be measured using different units = different baselines & scales -> not directly comparable in this form
@@ -242,9 +245,9 @@ Shows hierarchical clustering of variables -> clusters into 3 groups (running, t
      * Centering & Scaling encountered when computing correlation coefficient
        * **Correlation Coefficient** = vector product of centered & scaled variables
      * Use the `scale()` function for centering and scaling
-       * default behaviour when given matrix/dataframe = make each column have a mean & std of 1
+       * default behaviour when given matrix/dataframe = make each column have a mean & stdev of 1
       
-* Q) Compute means & std of turtle data & use scale function to center+standardize continous variables (name this scaledTurtles) - verify new values for mean & std of scaledTurtles
+* Q) Compute means & stdev of turtle data & use scale function to center+standardize continous variables (name this scaledTurtles) - verify new values for mean & std of scaledTurtles
 * A)
 
 ```{r}
@@ -254,6 +257,24 @@ scaledTurtles <- scale(turtles[,-1])
 apply(scaledTurtles,2,mean)
 apply(scaledTurtles,2,sd)
 ```
+
+```{r}
+# How this works is explained in the next 3 code blocks
+# Original data
+turtles[,-1]
+# Scaled data (center = subtract col mean from data points, scale = divide datapoints by col sd)
+as.data.frame(scaledTurtles)
+# Check by turning turtles into scaled dataset - subtract mean from data then divide by sd of original data (this is called centering + scaling)
+Uselessturtlefunction <- function(x){
+  length <- (x[,2] - mean(x[,2]))/sd(x[,2])
+  width <- (x[,3] - mean(x[,3]))/sd(x[,3])
+  height <- (x[,4] - mean(x[,4]))/sd(x[,4])
+  combined <- data.frame(length=length, width=width, height=height)
+  return(combined)
+}
+Uselessturtlefunction(turtles)
+```
+
 
 * Q) Make a scatterplot of scaled & centered width + height variables of turtle data -> color points by sex
 ```{r}
@@ -330,7 +351,7 @@ var(athletes$disc)
 
 #### How to summarize 2D data by a line? 
 * Lose info about points when projected from 2D (plane) -> 1D (line)
-  * If we do this by using original coordinates (as above scatter plot on athelete$weight) -> lose info about disc variable
+  * If we do this by using original coordinates (as above scatter plot on athelete$weight) -> lose info about disc variable (ex) project onto x = lose info of y, and opposite is true - so find an angle of projection that minimizes loss of both variables)
   * <mark style='background-color:yellow'>Goal is to keep info about both variables</mark>
   
 * Many ways to project point cloud onto a line (ex) regression lines)
@@ -376,9 +397,9 @@ Variences of points on the original axes weight & disc are 1 (scaled variables)
 * **Line minimizing distances in both directions**
   * Line chosen to minimize sum of squares of orthagonal (perpendicular) projections of data pts = **principle component line**
 ```{r}
-xy <- cbind(athletes$disc, athletes$weight)
-svda <- svd(xy)
-pc = xy %*% svda$v[, 1] %*% t(svda$v[, 1])
+xy <- cbind(athletes$disc, athletes$weight) #make matrix
+svda <- svd(xy) #calculate singular value decomposition PC's 
+pc = xy %*% svda$v[, 1] %*% t(svda$v[, 1]) #transform matrix into subspace using calculated svd (in this case pc=A*V*t(V) - note %*% is used for matrix multiplication & V = scalar values (direction/eigenvalues)
 bp = svda$v[2, 1] / svda$v[1, 1]
 ap = mean(pc[, 2]) - bp * mean(pc[, 1])
 ath_gg + geom_segment(xend = pc[, 1], yend = pc[, 2]) +
@@ -386,7 +407,7 @@ ath_gg + geom_segment(xend = pc[, 1], yend = pc[, 2]) +
 ```
 > The purple principal component line minimizes the sums of squares of the orthogonal projections.
 
-* Q) a) What particular about the slope of the purple line? <br> b) Redo the plots on the orignal(unscaled) variables - what happens?</br>
+* Q) a) What is particular about the slope of the purple line? <br> b) Redo the plots on the orignal(unscaled) variables - what happens?</br>
 * A) Lines computed depends on choice of units. Made stdev equal for both variables -> PCA line is diagonal cutting through middle of both regression lines
   * Data was centered via subtracting means = line passes through origin (0,0)
 ```{r}
@@ -408,7 +429,7 @@ sum(apply(pc,2,var))
 Variences along this axis is longer vs other variences calculated in the previous Pythagoras question
 
 <center><img src="http://web.stanford.edu/class/bios221/book/figure/chap8-chap8-r-PCAR1R2-1-1.png"  width="250" height="250"></center>
-> 3 ways of fitting a line: The blue line minimizes the sum of squares of the vertical residuals, the green line minimizes the horizontal residuals, the purple line, called the principal component, minimizes the orthogonal projections. Notice the ordering of the slopes of the three lines.
+> 3 ways of fitting a line: The blue line minimizes the sum of squares of the vertical residuals, the green line minimizes the horizontal residuals (Blue/Green = linear regression), the purple line, called the principal component (SVD), minimizes the orthogonal projections. Notice the ordering of the slopes of the three lines.
 
 * Pythagoras' theorem tells 2 things
   * If minimize both horizontal/vertical directions -> minimizing the orthagonal projections onto line from each pt
@@ -469,7 +490,7 @@ V = 2 \times \text{Beet} + 1 \times \text{Carrot} +
 * In figure above
   1) Calculate means and variances
   2) Pick to work with rescaled covariences (correlation matrix) or not
-  3) Pick _k_, number of components relevant to data
+  3) Pick _k_, number of components relevant to data (think she means eigenvalues & associated eigenvectors)
     * k = rank of the approximation chosen - give careful explaination of how choice is made
 * Impossible to choose #of components before doing analysis (unlike clustering)
   * Choice of k needs visualization of the plot of <u>variances</u> & successive principal components before projecting the data
@@ -480,13 +501,16 @@ V = 2 \times \text{Beet} + 1 \times \text{Carrot} +
 <p id="7"><b><font size="5">The inner workings of PCA: rank reduction</b></font><a href="#0"><sup>Return</sup></a></p>
 * This section may require a background in linear algebra (even if faint)
   * Provides insight into SVD method used for PCA
-* SVD (singular value decomposition) of a matrix is used to find horizontal & vertical vectors (singular vectors) & normalizing values (singular values)
+* SVD (singular value decomposition) of a matrix is used to find horizontal & vertical vectors (singular vectors) & normalizing values (singular values) (S = UAV^t)
 
 #### Rank-one matricies
 * Simple generative model shows the meaning of rank of a matrix & how to find it
   * Suppose 2 vectors (_u_ = a one column matrix)
   * Suppose v<sup>t</sup>=t(v) (a one row matrix - transposed from one column matrix v)
-  * Multiply a copy of _u_ by each elements of v<sup>t</sup> looks like the following
+  * Multiply a copy of _u_ by each elements of v<sup>t</sup> looks like the following 
+    * (row x col)
+    * U = c(1,2,3,4) a col vector
+    * Vt = c(2,4,8) a row vector
   
 * Step1
 
@@ -499,9 +523,9 @@ V = 2 \times \text{Beet} + 1 \times \text{Carrot} +
 
 * Step2
 
-|X|2|4|8|
+|X|<font color="green">2</font>|4|8|
 |---|---|---|---|
-1|2| | |
+<font color="blue">1</font>|<font color="darkyellow">2</font>| | |
 2|4| | |
 3|6| | |
 4|8| | |
@@ -524,7 +548,7 @@ V = 2 \times \text{Beet} + 1 \times \text{Carrot} +
 3|6|12|24|
 4|8|16|32|
 
-* Matrix X here is said to be rank-1 b/c _u_ and _v_ both have one column  
+* Matrix X here is said to be rank-1 b/c _u_ and _v_ both have one column  (note not V<sup>t</sup> which is mentioned here... this is completely misleading. U is matrix w/ 1 col & V (the untransposed V<sup>t</sup>) is also a matrix w/ 1 col)
 
 <button data-toggle="collapse" data-target="#c2">column vectors u & v</button>
 <div id="c2" class="collapse">
@@ -707,7 +731,7 @@ x_{3.} & 540 & 648 &  900 & 504\\
 * Decomposition of X is not unique, there are several candidates for vectors _u_ & _v_ (3 different ways to get area of rectangles as above)
   * Choose marginal vectors so each vector has the coordinats **sum of squares add to 1** (vectors _u_ and _v_ have norm1)
   * Keep track of one extra number (#used to multiply each of the products & represents "overall scale" of X)
-    * This is the #in the white box at the upper left corner of matrix 3 above (2348.3) = **singular value s1**
+    * This is the #in the white box at the upper left corner of matrix 3 above (2348.3) = **singular value s1** (note singular value is the square root of the eigenvalue used to form col/row of matrix U/V)
     
 * In this R-code, start by assuming values in _u_, _v_, and s1 is known
   * Will show a function to find these values later
@@ -724,7 +748,7 @@ v = c(0.4053, 0.4863, 0.6754, 0.3782)
 s1 = 2348.2
 sum(u^2)
 sum(v^2)
-s1*u %*% t(v) #note find out what %*% does later
+s1*u %*% t(v) 
 X-s1*u %*% t(v)
 ```
 
@@ -737,10 +761,10 @@ svd(X)$u[, 1]
 svd(X)$v[, 1]
 sum(svd(X)$u[, 1]^2)
 sum(svd(X)$v[, 1]^2)
-svd(X)$d
+svd(X)$d #these are singular values (square roots of eigenvalues)
 ```
 
-* In this case, can see the 2nd & 3rd singular values are 0 (not looking at decimals)
+* In this case, can see the 2nd & 3rd singular values are 0 (not looking at decimals - 2.141733e-13 6.912584e-15)
   * This is why we say matrix X is rank-1 
 * Usually in other matricies X, it is rare to write X as this two-vector product
   * Next shown, how to decompose X when it is not rank-1
@@ -760,7 +784,7 @@ USV = svd(Xtwo)
 * A)
 ```{r}
 names(USV)
-USV$d
+USV$d #singular values
 ```
 135.1 is the first singular value in USV$d[1] (1.351*e02)
 
@@ -768,11 +792,12 @@ USV$d
 
 ```{r}
 Xtwo - USV$d[1] * USV$u[, 1] %*% t(USV$v[, 1])
+
 Xtwo - USV$d[1] * USV$u[, 1] %*% t(USV$v[, 1]) -
        USV$d[2] * USV$u[, 2] %*% t(USV$v[, 2])
 ```
 
-* 3rd & 4th values are small, don't improve approximation -> conclude Xtwo is rank-2
+* 3rd & 4th values are small, don't improve approximation -> conclude Xtwo is rank-2 (b/c 2 singular values/4 are above 0)
 
 * Many ways to write rank-2 matrix (ex) Xtwo) as sum of rank-1 matrix
   * in order to ensure uniqueness, we add another condition to the singular vectors (above used norm of vectors=1)
@@ -789,9 +814,9 @@ t(USV$v) %*% USV$v
 * Submit rescaled turtles matrix to SVD
 ```{r}
 turtles.svd = svd(scaledTurtles)
-turtles.svd$d
-turtles.svd$v
-dim(turtles.svd$u)
+turtles.svd$d #singular values (squared eigenvalues)
+turtles.svd$v #v matrix (A)^t(A)
+dim(turtles.svd$u) #u matrix (A)(A)^t
 ```
 
 * Q) What can be concluded from tutles matrix resulting svd output?
@@ -825,7 +850,13 @@ X_{ij} = u_{i1}s_1v_{1j} +  u_{i2}s_2v_{2j} + u_{i3}s_3v_{3j} +... +
 u_{ir}s_rv_{rj},
 \end{equation*}
 
-* U & V are said to be orthonormal (norm=1 - not related to normal distribution) b/c self-crossproducts are identity matrix
+* **U & V are said to be orthonormal (norm=1 - not related to normal distribution) b/c self-crossproducts are identity matrix**
+```{r}
+#check this statement
+round(crossprod(USV$v, USV$v),1)
+round(crossprod(USV$u, USV$u),1)
+```
+Confirmed
 
 #### Princial components
 * Singular vectors from the SVD (`svd()`) contain coefficents to put in front of original variables to make more informative = Principal component
@@ -836,17 +867,17 @@ Z_1=c_1 X_{\bullet 1} +c_2 X_{\bullet 2}+ c_3 X_{\bullet 3}+\cdots c_p X_{\bulle
 \end{equation*}
 
 * If usv=svd(X), then (c1, c2, c3, ...) given by 1st column of usv$v
-  *New variables Z1,Z2,Z3,... will have variences decreasing in size \begin{equation}s_1^2 \geq s_2^2 \geq s_3^2 \geq ...\end{equation}
+  * New variables Z1,Z2,Z3,... will have variences decreasing in size \begin{equation}s_1^2 \geq s_2^2 \geq s_3^2 \geq ...\end{equation}
   
-* Q) Compute 1st PC for turtles data by multiplying by 1st singular value of usv$d[1] by usv$u[,1]. What is another way of computing it?
+* <mark style='background-color:lightgreen'>Q) Compute 1st PC for turtles data by multiplying by 1st singular value of usv$d[1] by usv$u[,1]. What is another way of computing it?</mark>
 * A) 
 ```{r}
 turtles.svd$d[1] %*% turtles.svd$u[,1]
 scaledTurtles %*% turtles.svd$v[,1]
 ```
 
-Matrix multiplications can show that XV & US are the same
-  * Remember V is orthogonal (so V<sup>t</sup>V = I & XV=USV<sup>t</sup>V=USI)
+**Matrix multiplications can show that XV & US are the same**  
+  * Remember V is orthogonal (so V<sup>t</sup>V = I & XV=USV<sup>t</sup>V=USI) -> where I = identity matrix
   
 * If lost about which output matracies to deal with, think of dimension of PCs
   * each C=(c1,c2,...,cp) is of length n (#of observations)
@@ -871,6 +902,252 @@ k\leq \min(n,p)
   
 * **
 <p id="8"><b><font size="5">Plotting the observations in the principal plane</b></font><a href="#0"><sup>Return</sup></a></p>
+
+> In fact, PCA is such a fundamental technique that there are many different implementations of it in various R packages. Unfortunately, the input arguments and the formating and naming of their output is not standardized, and some even use different conventions for the scaling of their output. We will experiment with several different ones to familiarize ourselves with these choices.
+
+* Using atheletes data ($discus & $weight)
+  * Previously found prinipal component (PC) - the purple line in dimension reduction (above)
+  * Showed that Z1 is the linear combination of the diagonal
+  * Coefficients sum of squares must add to 1, so Z1=(-0.707*athletes$disc)-(0.707*athletes$weight)
+```{r}
+svda$v[,1]
+```
+
+
+> This is the same as if the two coordinates were c1 = 0.7071 and c2 = 0.7071.
+
+* Q) What part of the output of svd functions leads us to the **first PC coefficients, also known as PC loadings?**
+* A) 
+```{r}
+svda$v[,1]
+```
+
+* If we roate the plane (discus, weight) into making the purple line the horizontal x-axis -> this is the **first principal plane**
+
+```{r}
+ppdf = tibble(PC1n = -svda$u[, 1] * svda$d[1], #PC1 values is U[col1] %*% singularvalue[1] put into tibble
+              PC2n = svda$u[, 2] * svda$d[2]) #PC2 values is U[col2] %*% singularvalue[2] put into tibble
+ggplot(ppdf, aes(x = PC1n, y = PC2n)) + geom_point() + xlab("PC1 ")+
+    ylab("PC2") + geom_point(aes(x=PC1n,y=0),color="red") +
+    geom_segment(aes(xend = PC1n, yend = 0), color = "red") +
+    geom_hline(yintercept = 0, color = "purple", lwd=1.5, alpha=0.5) +
+    xlim(-3.5, 2.7) + ylim(-2,2) + coord_fixed()
+
+#no clue what this is trying to show
+segm = tibble(xmin = pmin(ppdf$PC1n, 0), xmax = pmax(ppdf$PC1n, 0), yp = seq(-1, -2, length = nrow(ppdf)), yo = ppdf$PC2n)
+ggplot(ppdf, aes(x = PC1n, y = PC2n)) + geom_point() + ylab("PC2") + xlab("PC1") +
+    geom_hline(yintercept=0,color="purple",lwd=1.5,alpha=0.5) +
+    geom_point(aes(x=PC1n,y=0),color="red")+
+    xlim(-3.5, 2.7)+ylim(-2,2)+coord_fixed() +
+    geom_segment(aes(xend=PC1n,yend=0), color="red")+
+    geom_segment(data=segm,aes(x=xmin,xend=xmax,y=yo,yend=yo), color="green",alpha=0.5)
+```
+
+> In the case where we only have two original variables, the PCA transformation is a simple rotation; the new coordinates are always chosen to be the horizontal and vertical axes.
+
+* Q) 
+  * a) What is the mean of the sums of squares of the red segments?
+  * b) How does this compare to the varience of the red points?
+  * c) Compute ratio of the stdev of red segments to green segements. Compare this to ratio of singular values 1 & 2
+  
+* A) 
+  * a) Mean sums of squares of red segments = square of 2nd singular value
+```{r}
+svda$d[2]^2
+```
+  * b) Varience of red points is var(ppdf$PC1n)
+    * This is larger vs mean sums of squares calculated in a (????)
+```{r}
+var(ppdf$PC1n)
+```
+
+  * c) Take ratios of stdev of pts on vertical & horizontal axes via
+```{r}
+sd(ppdf$PC1n)/sd(ppdf$PC2n)  #horizontal PC1 vs vertical PC2
+svda$d[1]/svda$d[2] #or singular value 1 vs singular value 2
+```
+
+* Use `prcomp()` to find PCA of the 1st 2 columns of athletes dataset - look at output then compare to `svd()`
+```{r}
+prcomp(athletes[,1:2])
+svd(athletes[,1:2])$v
+```
+
+#### PCA of turtles data
+
+* "true" dimensionality of rescaled data (scaledTurtles)
+  * Use `prcomp()` to list all values needed to plot PCA
+```{r}
+cor(scaledTurtles) #generate a correlation matrix
+```
+```{r}
+# Find PCs
+pcaturtles <-  princomp(scaledTurtles)
+pcaturtles
+```
+
+```{r}
+fviz_eig(pcaturtles, geom = "bar", bar_width = 0.4) + ggtitle("")
+```
+
+> The screeplot shows the eigenvalues for the standardized turtles data (scaledTurtles): there is one large value and two small ones.The data are (almost) one-dimensional. We will see why this dimension is called an axis of size, a frequent phenomenon in biometric data.
+
+* Q) Many PCA functions created by different people -> problematic naming conventions
+  * Compare 4 of them & look at the results
+  * What happens when you disable the scaling in the prcomp and princomp functions?
+```{r}
+svd(scaledTurtles)$v[, 1]
+prcomp(turtles[, -1])$rotation[, 1]
+princomp(scaledTurtles)$loadings[, 1]
+ade4::dudi.pca(turtles[, -1], nf = 2, scannf = FALSE)$c1[, 1]
+```
+
+* Comparable when scalings on (default = off)
+
+```{r}
+svd(scaledTurtles)$v[, 1]
+prcomp(turtles[, -1], scale=T)$rotation[, 1]
+princomp(scaledTurtles, cor=T)$loadings[, 1] #cor is the scaling for princomp
+ade4::dudi.pca(turtles[, -1], nf = 2, scannf = FALSE)$c1[, 1]
+```
+
+* For the following, assume matrix X is centered (mean subtracted) & scaled (div stdev)
+
+* Q) Coordinates ofthe observations in the new variables from `prcomp()` = res -> prcomp()$scores
+  * Look at PC1 for scaledTurtles & compare to res$scores
+  * Compare stdev sd1 to res & stdev of scores
+```{r}
+res = princomp(scaledTurtles)
+PC1 = scaledTurtles %*% res$loadings[,1] #compute PC1 using A x v 
+sd1 = sqrt(mean(res$scores[, 1]^2))
+```
+
+* Combine PC scores (U*S matrix) & loading-coefficients(V)
+  * **Plots w/ both samples & variables represented = biplot (PCA score + loarding plot)**
+  * use factoextra package
+  
+```{r}
+fviz_pca_biplot(pcaturtles, label="var", habillage = turtles[,1]) + ggtitle("")
+```
+> A biplot of the first two dimensions showing both variables and observations. The arrows show the variables. The turtles are labeled by sex. The extended horizontal direction is due to the size of the first eigenvalue, which is much larger than the second.
+
+> Beware the aspect ratio when plotting a PCA. It is rare to have the two components be of similar norm, so square shaped plots will be the exception. More common are elongated plots, which show that the horizontal (first) principal component is more important than the second. This matters, e.g., for interpreting distances between points in the plots.
+
+* Q) Is it possible to have a PCA plot with the PC1 as the horizontal axis whose height is longer than its width?
+* A) 
+
+> The variance of points in the PC1 direction is \begin{equation}\lambda_1=s_1^2\end{equation} which is always larger than \begin{equation}\lambda_2=s_2^2\end{equation}, so the PCA plot will always be wider than high.
+
+* Q) Looking at the above biplot, does male or female turtles tend to be larger & what do the arrows tell us about the correlations?
+* A) Larger in terms of what (width or length?). Arrows tell if variable is +ve/-ve correlated 
+
+* Q) Compare variance of each new coordinate to the eigenvalues produced by PCA `dudi.pca()` - no clue what's happening here
+* A) 
+```{r}
+pcadudit = dudi.pca(scaledTurtles, nf = 2, scannf = FALSE)
+apply(pcadudit$li, 2, function(x) sum(x^2)/48)
+pcadudit$eig
+```
+
+* Look at relationships between variables (old vs new)
+  * Do this by drawing a **correlation circle**
+    * Aspect ratio=1 & variables represented by arrows
+    * Lengths of arrows indicate quality of projections onto PC1
+```{r}
+fviz_pca_var(pcaturtles, col.circle = "black") + ggtitle("") +
+  xlim(c(-1.2, 1.2)) + ylim(c(-1.2, 1.2))
+```
+> Part of the “circle of correlations” showing the original variables. Their correlations with each other and with the new principal components are given by the angles between the vectors and between the axes and the vectors
+
+* Q) Explain the relationships between the number of rows of our turtles data matrix and the following numbers:
+```{r}
+svd(scaledTurtles)$d/pcaturtles$sdev
+sqrt(47)
+```
+
+* A) 
+
+> When computing the variance covariance matrix, many implementations use 1 / (n−1) as the denominator. Here, n = 48 so the sum of the variances are off by a factor of 48/47.
+
+> If we only want the first one then it is just c1 = s1u1 note  
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+  <mrow class="MJX-TeXAtom-ORD">
+    <mo stretchy="false">|</mo>
+  </mrow>
+  <mrow class="MJX-TeXAtom-ORD">
+    <mo stretchy="false">|</mo>
+  </mrow>
+  <msub>
+    <mi>c</mi>
+    <mn>1</mn>
+  </msub>
+  <mrow class="MJX-TeXAtom-ORD">
+    <mo stretchy="false">|</mo>
+  </mrow>
+  <msup>
+    <mrow class="MJX-TeXAtom-ORD">
+      <mo stretchy="false">|</mo>
+    </mrow>
+    <mn>2</mn>
+  </msup>
+  <mo>=</mo>
+  <msubsup>
+    <mi>s</mi>
+    <mn>1</mn>
+    <mi>t</mi>
+  </msubsup>
+  <msub>
+    <mi>u</mi>
+    <mn>1</mn>
+  </msub>
+  <msubsup>
+    <mi>u</mi>
+    <mn>1</mn>
+    <mi>t</mi>
+  </msubsup>
+  <msub>
+    <mi>s</mi>
+    <mn>1</mn>
+  </msub>
+  <mo>=</mo>
+  <msubsup>
+    <mi>s</mi>
+    <mn>1</mn>
+    <mn>2</mn>
+  </msubsup>
+  <msubsup>
+    <mi>u</mi>
+    <mn>1</mn>
+    <mi>t</mi>
+  </msubsup>
+  <msub>
+    <mi>u</mi>
+    <mn>1</mn>
+  </msub>
+  <mo>=</mo>
+  <msubsup>
+    <mi>s</mi>
+    <mn>1</mn>
+    <mn>2</mn>
+  </msubsup>
+  <mo>=</mo>
+  <msub>
+    <mi>&#x03BB;<!-- λ --></mi>
+    <mn>1</mn>
+  </msub>
+</math>
+
+* This is a good example that all variation in data can be captured in low-dimensional space
+  * 3D data replaced by a line here
+* X<sup>t</sup>C=VSU</sup>t</sup>US=VS</sup>2</sup>
+  * The principal components (PC) = columns of the matrix C=US
+  * p columns of U (matrix of USV$u) = output from `svd()` -> rescaled to have norms (s<sub>1</sub><sup>2</sup>,s<sub>2</sub><sup>2</sup>,...,s<sub>p</sub><sup>2</sup>)
+    * Each column has a different variance to explain (note in decreasing #'s)
+    
+* If matrix X is from study of n different samples, then PC generates new coordinates for the n points (**called scores in results of PCA functions**)
+
+* Summary of SVD and PCA
+  * 
 
 * **
 <p id="9"><b><font size="5">PCA as an exploratory tool: using extra information </b></font><a href="#0"><sup>Return</sup></a></p>
