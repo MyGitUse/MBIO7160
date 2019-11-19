@@ -1401,12 +1401,13 @@ fviz_pca_ind(pcaMouse, geom = "point", col.ind = xwt$sampleGroup) +
 > Output from weighted PCA on the Hiiragi data. The samples are colored according to their groups.
 
 * Note that from tab data -> group are represented unequally
-  * Need to reweigh each sample via inverse of the group size 
   * function `dudi.pca()` from ade4 package has row.w= argument to enter weights
     * output of this result is seen in the above screeplot + PCA plot
 
 * **
 <p id="10"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
+
+#### 7.1
 
 
 * **
