@@ -1244,14 +1244,166 @@ p + stat_smooth(method = "lm", se = FALSE)
 #### How to choose k (#of dimentsions)?
 * Step 1 of PCA = make screeplot of variances of the new variables (=eigen values)
   * Can't decide how many dimensions needed before seeing this plot
-  * Situations when PC are poorly defined (>2 or 3 PCs have similar variances)
+  * Situations when PC are poorly defined (>2 or 3 PCs have similar variances) - shown in below screeplot
     * subspace corresponding to group of similar eigenvalues exist
     * This would generate a 3D space (by u2, u3, u4 matracies)
       * Vectors not meaningful individually & cant interpret loadings
       * B/c slight change in observations can give completely different set of 3 vectors (would generate same 3D sapce but have different loadings) = Unstable PC
+      
+<center><img src="http://web.stanford.edu/class/bios221/book/figure/chap8-screeploteq-1.png"  width="250" height="250"></center>
+> A screeplot showing ‘dangerously’ similar variances. Choosing to cutoff at a hard threshold of 80% of the variance would give unstable PC plots. With so such cutoff, the axes corresponding to the 3D subspace of 3 similar eigenvalues are unstable and cannot be individually interpreted.
     
 * **
 <p id="9"><b><font size="5">PCA as an exploratory tool: using extra information </b></font><a href="#0"><sup>Return</sup></a></p>
+* Unlike linear regression, PCA treats all variables the same (pre-processing to have equivalent sdevs via scaling)
+  * Can map other continous variables/categorical factors onto plots to help interpret results
+    * Usually have complementary info on samples (ex) diagonostic labels or cell types)
+* Can use complementary variables to update interpretation (ex) Bioconductor SummarizedExperiment class -> 2nd best addtional columns of dataframe w/ numeric data)
+  * This information is often stored within row names of the matrix
+
+* Example for storing complementary variables in row names
+  * use `substr()` to extract cell types & show screeplot + PCA
+
+```{r}
+#Screeplot
+pcaMsig3 <- dudi.pca(Msig3transp, center = TRUE, scale = TRUE,
+                    scannf = FALSE, nf = 4)
+fviz_screeplot(pcaMsig3) + ggtitle("")
+```
+> T-cell expression PCA screeplot.
+
+
+```{r}
+ids = rownames(Msig3transp)
+celltypes = factor(substr(ids, 7, 9))
+status = factor(substr(ids, 1, 3))
+table(celltypes)
+```
+
+```{r}
+#PCA plot
+cbind(pcaMsig3$li, tibble(Cluster = celltypes, sample = ids)) %>%
+ggplot(aes(x = Axis1, y = Axis2)) +
+  geom_point(aes(color = Cluster), size = 5) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_color_discrete(name = "Cluster") + coord_fixed()
+```
+> PCA of gene expression for a subset of 156 genes involved in specificities of each of the three separate T-cell types: effector, naïve and memory. Again, we see that the plot is elongated along the the first axis, as that explains much of the variance. Notice that one of the T-cells seems to be mislabeled.
+
+#### Mass Spectroscopy Data Analysis
+* This data requires careful preprocessing to obtain desired matrix w/ relevant features(in columns)
+  * Raw mass spectroscopy readings -> extract peaks of relevant figures then align across multiple samples & estimate peak heights
+* Suggests Bioconductor xcms package
+* ex) load matrix of data from  mat1xcms.RData file
+
+```{r}
+load(here("BookStuff", "data", "mat1xcms.RData"))
+dim(mat1)
+```
+```{r}
+pcamat1 = dudi.pca(t(mat1), scannf = FALSE, nf = 3)
+fviz_eig(pcamat1, geom = "bar", bar_width = 0.7) + ggtitle("")
+dfmat1 = cbind(pcamat1$li, tibble(
+    label = rownames(pcamat1$li),
+    number = substr(label, 3, 4),
+    type = factor(substr(label, 1, 2))))
+```
+>  Screeplot showing the eigenvalues for the mice data.
+
+
+```{r}
+pcsplot = ggplot(dfmat1,
+  aes(x=Axis1, y=Axis2, label=label, group=number, colour=type)) +
+ geom_text(size = 4, vjust = -0.5)+ geom_point(size = 3)+ylim(c(-18,19))
+pcsplot + geom_hline(yintercept = 0, linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2)
+```
+> The first principal plane for the mat1 data. It explains 59% of the variance.
+
+* Q) Looking at the above PCA plot, do the samples seem to be randomly placed on the plane? Notice any structure explained by the labels?
+* A) 
+
+> The answer becomes (even more) evident if you make this plot. Knockouts are always below their paired wildtype sample. We will revisit this example when we look at supervised multivariate methods in our next chapter.
+
+```{r}
+pcsplot + geom_line(colour = "red")
+```
+
+#### Biplots and scaling
+* Previous example, #variables measured was to large to allow useful concurrent plotting of both variables+samples
+* This example, plot PCA biplot of data where chemical measurements made on different wines (also has a categorical wine.class variable)
+  * First look at 2d correlations + heatmap of variables
+  
+```{r}
+load(here("BookStuff", "data", "wine.RData"))
+load(here("BookStuff", "data", "wineClass.RData"))
+wine[1:2, 1:7]
+```
+
+```{r}
+pheatmap(1 - cor(wine), treeheight_row = 0.2)
+winePCAd = dudi.pca(wine, scannf=FALSE)
+```
+> The difference between 1 and the correlation can be used as a distance between variables and is used to make a heatmap of the associations between the variables.
+
+```{r}
+table(wine.class)
+```
+
+```{r}
+fviz_pca_biplot(winePCAd, geom = "point", habillage = wine.class,
+   col.var = "violet", addEllipses = TRUE, ellipse.level = 0.69) +
+   ggtitle("") + coord_fixed()
+```
+
+> PCA biplot including ellipses for the three types of wine: barolo, grignolino and barbera. For each ellipsis, the axis lengths are given by one standard deviation. Small angles between the vectors Phenols, Flav and Proa indicate that they are strongly correlated, whereas Hue and Alcohol are uncorrelated.
+
+* **PCA Biplot** = shows both space of observations & space of variables
+  * In this example
+    * Arrows = directions of old variables projected onto plane defined by PC1 & PC2
+    * Observations = coloured dots (colors according to type of wine)
+    * Can interpret variables directions based on sample points
+      * ex) blue points are from barbera group -> shows higher malic acid content vs other wines
+
+* Interpretation of multivariate plots requires use of all information possible
+  * This example used samples + groups + variables to explain differences betwene wines
+  
+#### Example of weighted PCA
+* May want to see variablity between different groups/observations but use a weight for each group/observation
+  * ex) if groups have different sizes
+* Using Hiiragi data -> extract WT samples & top 100 features w/ highest overall variance
+
+
+```{r}
+data("x", package = "Hiiragi2013")
+xwt = x[, x$genotype == "WT"] # pull out WT samples
+sel = order(rowVars(Biobase::exprs(xwt)), decreasing = TRUE)[1:100]
+xwt = xwt[sel, ]
+tab = table(xwt$sampleGroup)
+tab
+```
+
+```{r}
+xwt$weight = 1 / as.numeric(tab[xwt$sampleGroup])
+pcaMouse = dudi.pca(as.data.frame(t(Biobase::exprs(xwt))),
+  row.w = xwt$weight,
+  center = TRUE, scale = TRUE, nf = 2, scannf = FALSE)
+fviz_eig(pcaMouse) + ggtitle("")
+```
+
+> Screeplot from the weighted PCA of the Hiiragi data. The drop after the second eigenvalue suggests that a two-dimensional PCA is appropriate.
+
+```{r}
+fviz_pca_ind(pcaMouse, geom = "point", col.ind = xwt$sampleGroup) +
+  ggtitle("") + coord_fixed()
+```
+> Output from weighted PCA on the Hiiragi data. The samples are colored according to their groups.
+
+* Note that from tab data -> group are represented unequally
+  * Need to reweigh each sample via inverse of the group size 
+  * function `dudi.pca()` from ade4 package has row.w= argument to enter weights
+    * output of this result is seen in the above screeplot + PCA plot
 
 * **
 <p id="10"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
