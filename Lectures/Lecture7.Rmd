@@ -1140,15 +1140,116 @@ sqrt(47)
 * This is a good example that all variation in data can be captured in low-dimensional space
   * 3D data replaced by a line here
 * X<sup>t</sup>C=VSU</sup>t</sup>US=VS</sup>2</sup>
-  * The principal components (PC) = columns of the matrix C=US
+  * **The principal components (PC) = columns of the matrix C=US**
   * p columns of U (matrix of USV$u) = output from `svd()` -> rescaled to have norms (s<sub>1</sub><sup>2</sup>,s<sub>2</sub><sup>2</sup>,...,s<sub>p</sub><sup>2</sup>)
     * Each column has a different variance to explain (note in decreasing #'s)
     
 * If matrix X is from study of n different samples, then PC generates new coordinates for the n points (**called scores in results of PCA functions**)
 
-* Summary of SVD and PCA
-  * 
+> Eigen decompositions = crossproduct of X with itself satifies  
+X<sup>t</sup>X = VSU<sup>t</sup>USV<sup>t</sup>=VS<sup>2</sup>V<sup>t</sup>=VΛV<sup>t</sup>  
+V = eigenvector matrix of symmetric matrix X<sup>t</sup>X  
+Λ is the diagonal matrix of eigenvalues of X<sup>t</sup>X
 
+* Summary of SVD and PCA
+  * Each PC has varience measured by eigenvalue (square of associated singular value)
+  * New (transformed) variables are orthogonal
+    * Since they are also centered -> they are uncorrelated (in normal distriubted data = independent data)
+  * When variables rescaled, sum of variences of all variables = #of variables(=p)
+    * sum of variences computed by adding diagonal crossproduct matrix
+      * Sum of diagonal elements = **trace** of matrix
+  * PCs are ordered by size of the eigenvalues
+    * Use screeplot to decide how mnay components (eigenvalues) to keep
+      * Use biplot & annotate each PC axis w/ proportion of varience explained 
+
+#### Complete analysis: decathlon athletes (step by step)
+* First, look at rounded correlation matrix to see essential bivariate associations
+```{r}
+cor(athletes) %>% round(1)
+```
+
+* Second, look at screeplot to choose rank k for data
+  * This shows eigenvalues in screeplot (where the clear drop appears - should be the afther the 2nd value in this data)
+    * Good approximation for how many eigen values to keep (in this case rank2)
+```{r}
+pca.ath <- dudi.pca(athletes, scannf=F)
+pca.ath$eig
+```
+```{r}
+fviz_eig(pca.ath, geom="bar", bar_width=0.3) + ggtitle("")
+```
+> The screeplot is the first thing to consult, it tells us that it is satisfactory to use a two-dimensional plot.
+
+* Interpretation of 1st 2 axes by projecting loadings of original variables projected onto new variables
+  * Correlation circle shows projection of original variables onto 2new principal axes
+    * Angles between vectors = correlations
+```{r}
+fviz_pca_var(pca.ath, col.circle="black") + ggtitle("")
+```
+> Correlation circle of the original variables. Right side of plane = track & field events (m100-m1500), left side of plane = throwing + jumping events
+
+* Is there an opposition of skills characterized by the correlation matrix? (-ve correlation between variables of the 2 groups)
+  * How to interpret?
+    * Those who threw best have lower scores in track
+    * Athletes running short times are stronger (same w/ best throwers & jumpers)
+      * should change scores of track variables & redo analysis
+      
+* Q) What transformations of variables make best athletic performances to vary in same direction (most positively correlated)
+* A) Change signs on the running performances -> most variables will become +ve correlated
+
+```{r}
+athletes[,c(1,5,6,10)] = -athletes[,c(1,5,6,10)]
+cor(athletes) %>% round(1)
+```
+```{r}
+pcan.ath <- dudi.pca(athletes, nf=2, scannf=F)
+pcan.ath$eig
+```
+```{r}
+fviz_pca_var(pcan.ath, col.circle="black") + ggtitle("")
+```
+> Correlation circle after changing the signs of the running variables.
+
+* This correlation circle i the transformed variable
+  * can an axis of size (all arrows pointing same direction)
+* All -ve coorelations are small
+  * screeplot shows no change b/c eigenvalues are unchanged
+  * Signs in coefficents of PC loadings for m variables are the only outputs that change
+  
+* Plot atheletes projected in 1st PC
+```{r}
+fviz_pca_ind(pcan.ath) + ggtitle("") + ylim(c(-2.5,5.7))
+```
+> First principal plane showing the projections of the athletes. Do you notice something about the organization of the numbers?
+
+* Q) Look at athletes themselves shown by above graph - notice slight ordering effect. What is the relation between quality of atheletes & number on graph?
+* A) Join the dots following the order of numbers - will notice more connecting numbers on one side of plot vs randomly assigned numbers
+  * complementary info found on olympic data ($score variable is vector of final scores at competion in 1988)
+```{r}
+data("olympic", package="ade4")
+olympic$score
+```
+
+* Make a scatterplot scomparing 1st PC score of athletes to score from data
+```{r}
+p = ggplot(tibble(pc1 = pcan.ath$li[, 1], score = olympic$score, id = rownames(athletes)),
+   aes(x = score, y = pc1, label = id)) + geom_text()
+p + stat_smooth(method = "lm", se = FALSE)
+```
+> Scatterplot of the scores given as a supplementary variable and the first principal component. The points are labeled by their order in the data set. We can see a very strong correlation between this supplementary score variable and the first principal coordinate, why is it not a perfectly linear fit?
+
+* Can see strong correlation between both variables
+  * Note athelete#1 has highest score but not highest value for PC1 linear combo (why?)
+  
+#### How to choose k (#of dimentsions)?
+* Step 1 of PCA = make screeplot of variances of the new variables (=eigen values)
+  * Can't decide how many dimensions needed before seeing this plot
+  * Situations when PC are poorly defined (>2 or 3 PCs have similar variances)
+    * subspace corresponding to group of similar eigenvalues exist
+    * This would generate a 3D space (by u2, u3, u4 matracies)
+      * Vectors not meaningful individually & cant interpret loadings
+      * B/c slight change in observations can give completely different set of 3 vectors (would generate same 3D sapce but have different loadings) = Unstable PC
+    
 * **
 <p id="9"><b><font size="5">PCA as an exploratory tool: using extra information </b></font><a href="#0"><sup>Return</sup></a></p>
 
