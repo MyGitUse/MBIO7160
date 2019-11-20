@@ -1496,6 +1496,9 @@ ggplot(sim2d_2, aes(x=PC1, y=PC2)) + geom_point()
 What happens if you do not use the coord_fixed() option and have a square plotting zone? Why can this be misleading?
 
 * Where is figure 7.35??
+  * But based on ?coord_fixed() 
+
+> A fixed scale coordinate system forces a specified ratio between the physical representation of data units on the axes. The ratio represents the number of units on the y-axis equivalent to one unit on the x-axis. The default, ratio = 1, ensures that one unit on the x-axis is the same length as one unit on the y-axis. Ratios higher than one make units on the y axis longer than units on the x-axis, and vice versa. This is similar to MASS::eqscplot(), but it works for all types of graphics.
 
 ### Excercise 7.4
 
