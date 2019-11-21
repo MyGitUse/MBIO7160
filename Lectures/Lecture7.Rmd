@@ -1457,7 +1457,8 @@ X = X1+Materr
 Xc <- svd(X)
 
 #Plot PC1 & 2
-Xcc <- tibble(PC1x = Xc$u[,1] * Xc$d[1], PC2x = Xc$u[,2] * Xc$d[2])
+Xcc <- tibble(PC1x = Xc$u[,1] * Xc$d[1], PC2x = Xc$u[,2] * Xc$d[2]) #melt+ggpairs?(level plot, take each value of matrix and assign a number), geomraster
+# ggpairs() = correlation 1 b/c one column
 ggplot(Xcc, aes(x=PC1x, y=PC2x)) + geom_point()
 ```
 
@@ -1499,6 +1500,8 @@ What happens if you do not use the coord_fixed() option and have a square plotti
   * But based on ?coord_fixed() 
 
 > A fixed scale coordinate system forces a specified ratio between the physical representation of data units on the axes. The ratio represents the number of units on the y-axis equivalent to one unit on the x-axis. The default, ratio = 1, ensures that one unit on the x-axis is the same length as one unit on the y-axis. Ratios higher than one make units on the y axis longer than units on the x-axis, and vice versa. This is similar to MASS::eqscplot(), but it works for all types of graphics.
+
+* Maintains aspect ratio
 
 ### Excercise 7.4
 
