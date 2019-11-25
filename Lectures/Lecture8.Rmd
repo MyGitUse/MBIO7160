@@ -1,0 +1,502 @@
+---
+title: "Chapter 8: High-Throughput Count Data"
+output: html_notebook
+---
+
+
+```{r libraries, message=F, warning=F}
+library(pasilla) #bioconductor
+library(tibble)
+library(DESeq2)
+library(ggplot2)
+library(matrixStats)
+library(dplyr)
+library(pheatmap)
+```
+
+<body>
+      <font face = "Times New Roman">
+  
+<p id="0"><u><font size="5"><b>Table of contents</b></font></u></p>  
+<a href="#1">[1]</a> High-Throughput Count Data  
+<a href="#2">[2]</a> Summary  
+<a href="#3">[3]</a> Concepts  
+<a href="#4">[4]</a> Count data  
+<a href="#5">[5]</a> Modeling count data  
+<a href="#6">[6]</a> A basic analysis  
+<a href="#7">[7]</a> Critique of default choices and possible modifications  
+<a href="#8">[8]</a> Multi-factor design and linear models  
+<a href="#9">[9]</a> Generalized linear models  
+<a href="#10">[10]</a> Two-factor analysis of the pasilla data  
+<a href="#11">[11]</a> Further statistical concepts  
+<a href="#12">[12]</a> Excercises  
+<a href="#x">[X]</a> Misc.
+
+* **
+
+<p id="1"><b><font size="5">High-Throughput Count Data</b></font><a href="#0"><sup>Return</sup></a></p>
+* Many biolology machines based on parallel sampling & counting of molecules
+  * ex) high-throughput DNA seq
+* 2 classes of data output
+  1) Output are sequences (ex) polymorphisms or seq differences)
+  2) Output is abundance of different sequence regions (based on assembled+annotated reference genome alignment)
+* In RNA-Seq = sequence RNA moleucles (cDNA) in population of cells/tissues
+* In ChIP-Seq = sequence DNA regions bound to DNA-binding proteins (via immuno-precipitation)
+* In RIP-seq = RNA molecules/regions bound by RNA-binding protein
+* In DNA-seq = Sequence gneomic DNA and want to know SNPs in heterogenous population
+* In HiC (high-throughpput chromatin conformation capture) = map 3D apatial arrangement of DNA
+* In Genetic screens (RNAi/CRISPR-Cas9) = want tot know proliferation/survival of cells after gene knockdown/knockout/modification
+* In microbiome analysis = want to know aboundance of microbial species in complex habitats
+
+* Ideal situation is to seq and count all molecules of interest in sample
+  * This is usually impossible b/c protocols are not 100% efficient
+  * Some molecules lost during each step
+  * Solution
+    * Sequence & count a **staticically sample**
+      * Sample size depends on complexity of sequence pool assayed
+      * Hope that sample size is enough to represent all trends + patterns
+
+* **
+
+<p id="2"><b><font size="5">Chapter Summary</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* Analyzed count tables from high-throughput seq (& analagous data types) for difference in abundance
+  * Used a framework of linear models
+    * Can be used to analyze basic 2group comparison + complex multifactorial designs/experiments w/ covariates >2 levels or continous
+    * Ordinary linear models -> sampling distribution of data around expected value is **assumed independent+normal w/ 0 mean+same variances**
+      * count data -> distributions discrete & skewed (asymmetric) w/ high variances across a range
+        * Used generalization of oridinary linear models (Generalized linear models GLM)
+          * Considered gamma-Poisson distributed data w/ dispersion parameters needed to estimate from data
+          
+* Sampling depth differs from different seq runs (replicates) -> estimate effect of this variable parameter & account in model
+  * Used size factor (si)
+  * This part of the analysis = normalization
+  
+* In experiments, #replicates is usually too small to estimate dispersion parameter from data for each gene 
+  * Use shrinkage/emperical Bayes technique (large gains in percision w/ low bias)
+  
+* Generalized linear models allows modeling data on original scale
+  * Sometimes need to transform data scale to where data is more homoskedastic (less variance) & fill range more uniform
+    * ex) plot data/subject to general purpose clustering/dimesnion reduction/learning methods
+      * Used variance stabilizing transformation
+      
+* Critique of differential expression testing = null hypothesis -> effect size is exactly 0
+  * This is almost never true, so apporach is not consistent estimator of differentially expressed gene
+    * Can overcome by considering effect size + statistical significance
+    * Can use "banded" null hypothesis 
+
+* **
+<p id="3"><b><font size="5">Concepts</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* Key terminology
+  * Seq library = colelction of DNA inputted into machine
+  * Fragments = molecules sequenced via framenting DNA/cDNA (max length = 300-100 bp)
+  * Read = sequence outputted from fragment sequencing (covers one or both ends ~150 bp)
+  
+* During Sequencing & counting, there is a aggregation (clustering) step which groups all sequences together
+  * ex) all reads from same gene (RNA-seq)/from same binding region (ChIP-seq)
+  * Several approaches/choices depending on aim of experiment (best to check literature)
+  * Methods use alignment or hash-based mapping to reference seq (ex) RNA-seq genome+annotation of transcript) or Reference-independent seq similarity based clustering of reads (no obvious reference -> metagenomics/metatranscriptomics)
+    * Choose to consider different alleles/isoforms separately or merge into equivalence class
+
+* Use the term **gene** in this chapter to represent operational aggregates (clustering)
+
+* **
+<p id="4"><b><font size="5">Count data</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* Load data from pasilla package
+```{r}
+fn <- system.file("extdata", "pasilla_gene_counts.tsv", package="pasilla",mustWork=T) # system.file() locates file in pasilla package
+
+counts <- as.matrix(read.csv(fn, sep="\t",row.names = "gene_id"))
+```
+
+* Data stored in rectangular table (tab-delimited file) -> matrix counts
+
+```{r}
+dim(counts)
+```
+
+```{r}
+counts[2000+(0:3),] #prints data from beginning + random point in middle
+```
+
+* The counts matrix tallies #reads for each gene in sample = **count table**
+  * 14,599 rows = genes
+  * 7 columns = samples
+  * Matrix w/ integer value
+    * value in ith row + jth column of matrix = how many reads mapped to gene i in sample j
+    * Statistical sampling models discussed will rely on values of direct "raw" counts of seq reads (not derived quantity (ex) normalized counts/counts of covered bp) -> leads to nonsense results)
+    
+#### Challenges of count data 
+* Data have large range (0-millions)
+  * varience & distribution shape of data in different parts of range differs = **heteroskedasticity**
+* Data are non-negative integers & distribution not symmetric
+  * Log-normal distribution models can be poor fit
+* Need to understand sampling bias & adjust
+  * This is called **normalization**
+    * ex) total seq depth of experiment (even if true abundance of a gene in 2 libraries are same -> expect different #reads - depends on total#reads seq'd)
+    * ex) differing sampling probabilities (even if true abundance of two genes in sample are same -> expect different #reads if biophysical properties differ (%GC, 2ndary structure, binding partners))
+* Need to understand stochatic properties of sampling + other sources of stochastic experiment variation
+  * Studies w/ large #biological samples = resampling/permutation based methods
+  * Harder for designed experiments w/ limited sample size
+  * ex) 4 replicates from untreated & treated condition in pasilla data
+    * resampling/permutation based methods don't have enough power
+    * Need to make distribution assumptions
+      * what allows for computation of **probabilities of rare events in tails of distribution** -> really high/low counts from small #of distribution parameters
+* Estimation of dispersion parameters is difficult w/ small sample sies
+  * need to make further assumptions -> genes w/ similar locations have similar dispersions = sharing of info across genes
+    * Dispersion parameters = distributions parameterized in various ways
+      * parameters = measure of location & dispersion
+      * ex) mean is a measure of location & variance/stdev is a measure of dispersion
+
+#### RNA-seq: what about gene structures, splicing, isoforms?
+* Euk genes are complex -> multi-exon & mRNAs from concatenated exons via splicing
+  * Alternative splicing & choices of start/stop sites -> forms many alternative isoforms from the same gene locus
+    * Can use high-throughput seq to detect isoform structures of transcripts
+* Fragments characteristic for specific isoform -> can detect isoform specific abundances 
+* Current RNA-seq data -> short fragments of full-length isoforms = ard to assemble full length isoform structures/abundances
+  * Procedures have modest aim of making local statements (inclusion/exclusion of individual exons) = more rombust
+
+* **
+<p id="5"><b><font size="5">Modeling count data</b></font><a href="#0"><sup>Return</sup></a></p>
+
+#### Dispersion
+* ex) seq library w/ n1 fragments for gene1, n2 fragments for gene2, etc
+  * Total library size of n=n1+n2+...
+  * Sequence this library and determine identity of r randomly sampled fragments
+* Look at orders of magnitude of these #'s
+  * #genes in tens of thousands
+  * values of n depends on amount of cells used
+    * bulk RNA-seq = billions-trillions
+  * #reads r usually in tens of millions (much smaller vs n)
+* Conclude probability given read maps to ith gene is p=ni/n
+  * independent of outcomes from all other reads
+  * Model #reads for gene i via Poisson distribution = rate of Poisson is product of pi (initial proportion of framents for ith gene * r)
+    * \begin{equation}\lambda_i=rp_i\end{equation}
+    
+* Usually not interested in modeling read counts w/ single library
+  * Want to compare counts between libraries (see differences between biological conditions)
+    * ex) same cell w/ or w/o drug treatment -> larger than expected by chance
+      * larger than expected between biological replicates
+* **Replicate experiments vary more than what Poisson distribution predicts**
+  * pi (& lambdai) vary between biological replicates
+    * ex) temp to grow cells, drug concentration varies, incubation time
+    * solution: need to add another layer of modeling
+      * gamma-Poisson (negative bionomial) distribution is good for this
+        * Instead of a single lambda (represents mean & variance)
+        * gamma-Poisson has 2 parameters
+          * can be different for each gene
+* Want to consider **sampling w/o replacement** & multinomial distribution
+  * probability of sampling read for ith gene depends on #times same genes/other genes already sampled
+  * Dependencies are negligibly small so can ignore
+    * B/c n much larger than r -> #genes large and each individual ni is small vs summed total (n)
+    
+#### Normalization
+* Systematic biases affect data generation - should account for
+* The term **normalization** commonly used for this (often misleading - > nothing to do w/ normal distibution or data transformation)
+  * Want to identify nature & magnitude of systematic biases -> account in model-based analysis
+
+* Important systematic bias from variations in total #reads for each sample
+  * More reads in library1 vs library2 -> may assume counts are proportional to eachother w/ proportional factor (s)
+    * can naively propose estimate of s for each sample based on sum of counts of all genes
+    * There is a better method to this
+    
+* Ex) Dataset w/ 5 genes + 2 samples
+  * If estimate s for each of the 2 samples via sum of counts -> slope of blue line is the ratio (see below image)
+    * This means, gnee C is downregulated in sample2 vs sample1 & other genes lowly upregulated
+  * If we estimate s so that ratios -> slope of red line
+    * Still conclude C is downregulated & other genes are unchanged
+    * This estimate is more parsimonious & perferred
+      * Slope via rombust regression via DESEQ2
+
+<center><img src="http://web.stanford.edu/class/bios221/book/figure/chap7-rnaseq-normalization-1.png"  width="250" height="250"></center>
+> Size factor estimation. The points correspond to hypothetical genes whose counts in two samples are indicated by their x- and y-coordinates. The lines indicate two different ways of size factor estimation explained in the text.
+
+* Q) For example dataset count, how does output of DESeq2 `estimateSizeFactorsForMatrix()` compared to `colSums()`?
+* A) Not much different, results are nearly proportional
+```{r}
+ggplot(tibble(`size factor` = estimateSizeFactorsForMatrix(counts), `sum`=colSums(counts)), aes(x=`size factor`, y=`sum`)) + geom_point() #note ` vs ' generates different plots
+```
+> Size factors versus sums for the pasilla data.
+
+* Task: Locate the R sources for this book and have a look at the code that produces Figure 8.1.
+
+```{r}
+szfcDemo = data.frame(
+  x = c(2, 4, 6, 6,  8) * 10,
+  y = c(3, 6, 2, 9, 12) * 10,
+  name = LETTERS[1:5],
+  check.names = FALSE)
+slopes =  c(
+  blue = with(szfcDemo, sum(y) / sum(x)),
+  red = szfcDemo[, c("x", "y")] %>% as.matrix %>%
+    (DESeq2::estimateSizeFactorsForMatrix) %>% (function(x) x[2]/x[1]) %>% as.vector)
+ggplot(szfcDemo, aes(x = x, y = y, label = name)) + geom_point() +
+  coord_fixed() + xlim(c(0, 128)) + ylim(c(0, 128)) + xlab("sample 1") + ylab("sample 2") +
+  geom_text(hjust= 0.5, vjust = -0.6) +
+  geom_abline(slope = slopes[1], col = names(slopes)[1]) +
+  geom_abline(slope = slopes[2], col = names(slopes)[2])
+```
+
+* Q) Plot mean-variance relationship for biological replicates in pasilla dataset
+* A)
+```{r}
+sf = estimateSizeFactorsForMatrix(counts)
+ncounts  = counts / matrix(sf,
+   byrow = TRUE, ncol = ncol(counts), nrow = nrow(counts))
+uncounts = ncounts[, grep("^untreated", colnames(ncounts)),
+                     drop = FALSE]
+ggplot(tibble(
+        mean = rowMeans(uncounts),
+        var  = rowVars( uncounts)),
+     aes(x = log(mean), y = log(var))) +
+  geom_hex() + coord_fixed() + theme(legend.position = "none") +
+  geom_abline(slope = 1:2, color = c("forestgreen", "red"))
+```
+> Variance versus mean for the (size factor adjusted) counts data. The axes are logarithmic. Also shown are lines through the origin with slopes 1 (green) and 2 (red).
+
+* Green line(slope1) = expected if variance(v) = mean(m)
+  * Case for Poisson-distributed random variable (v=m)
+  * This approximately fits data in the lower range
+* Red line(slope2) = quadratic mean-variance relationship (v=m<sup>2</sup>)
+  * Lines parallel (not shown) would represent v=cm<sup>2</sup> for various values of c
+  * This approximately fits data in the upper range
+    * Quadratic relationship approximately fits data for some value of c<1
+
+* **
+<p id="6"><b><font size="5">A basic analysis</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* Using pasilla data (experiment on Drosophila melanogaser cell cultures w/ RNAi knockdown of splicing factor pasilla to see effect on transcriptome)
+  * Two experimental conditions (treated & untreated on header of count table)
+  * Corresponds to -ve control & siRNA against pasilla gene
+  * Experimental metadata of the 7 samples in this dataset is as follows
+  
+> Load the file pasilla_sample_annotation.csv that comes with the pasilla package. We locate it with the function system.file. When you work with your own data, you will need to prepare an analogous file, or directly a dataframe like pasillaSampleAnno.
+
+```{r}
+annotationFile = system.file("extdata",
+  "pasilla_sample_annotation.csv",
+  package = "pasilla", mustWork = TRUE)
+pasillaSampleAnno = readr::read_csv(annotationFile)
+pasillaSampleAnno
+```
+
+* Overall dataset produced in 2 batches
+  * 1st has 3 seqs libraries subjected to single end read sequencing
+  * 2nd batch has 4 seq libraries subjected to paired end sequencing
+* Need to data wrangle to replace hypens in type column w/ underscores
+  * Arithmetic operators in factor levels (such as hypens (-)) are discouraged by DESeq2
+    * Convert type & condition columns into factors
+      * Explicitly specify perfered order of levels (default = alphabetical)
+```{r}
+pasillaSampleAnno = mutate(pasillaSampleAnno, condition = factor(condition, levels = c("untreated", "treated")), type = factor(sub("-.*", "", type), levels = c("single", "paired")))
+```
+
+* Note, design is approximately balanced between factor of interest (condition) & nuisance factor (type)
+
+```{r}
+with(pasillaSampleAnno, table(condition, type))
+```
+
+* DESeq2 uses data contianer (DESeqDataSet) to store datasets
+  * Use of data containers (**or classes in R**) -> common for bioconductor packages (helps keep related data together)
+    * Requries user to understand classes unlike base R matrix & dataframes
+    * Helps avoid bugs due to loss of syncronization between related parts of data
+    * Allows abstraction & encapsulation of common operations
+  * Data container DESeqDataSet by DESeq2 is an extension of SummarizedExperiment class in bioconductor
+  * <mark style='background-color:blue'> Ask class about these classes</mark>
+    * SummarizedExperiment class used in many packages so learning it is multipurpose
+    
+    > Another advantage is that classes can contain validity methods, which make sure that the data always fulfill certain expectations, for instance, that the counts are positive integers, or that the columns of the counts matrix align with the rows of the sample annotation dataframe.
+    
+* Use constructor function `DESeqDataSetFromMatrix()` -> creates a DESeqDataSet class from count data matrix counts & sample annotation dataframe pasillaSampleAnno (metadata)
+
+>Note how in the code below, we have to put in extra work to match the column names of the counts object with the file column of the pasillaSampleAnno dataframe, in particular, we need to remove the "fb" that happens to be used in the file column for some reason. Such data wrangling is very common. One of the reasons for storing the data in a DESeqDataSet object is that we then no longer have to worry about such things.
+
+```{r}
+mt = match(colnames(counts), sub("fb$", "", pasillaSampleAnno$file))
+stopifnot(!any(is.na(mt)))
+
+pasilla = DESeqDataSetFromMatrix(
+  countData = counts,
+  colData   = pasillaSampleAnno[mt, ],
+  design    = ~ condition)
+class(pasilla)
+
+is(pasilla, "SummarizedExperiment")
+```
+
+* SummarizedExperiment class = DESeqDataSet
+  * Has storage for annotation of rows of count matrix
+  
+* Q) How can we access the row metadata of SummarizedExperiment object
+  * How can we read it/change it?
+* A) Check manual page of SummarizedExperiment class & methods rowData + rowData <-
+
+```{r}
+?`SummarizedExperiment-class`
+```
+
+#### DESeq2 method
+
+* Jump into differential expression analysis
+  * Aim -> ID genes that are differnetially abundant between treated/untreated cells
+  * Apply test that is similar to t-test (in section6) but more mathematically involved (more in multi-factor designs & linear models of this CH)
+    * STandard analysis steps wrapped into single function `DESeq()`
+
+```{r}
+pasilla <- DESeq(pasilla)
+```
+
+* `DESeq()` is a wrapper that calls:
+  * `estimateSizeFactors()` -> normalization as previously discussed
+  * `estimateDispersions()` -> dispersion estimation
+  * `nbinomWalsTest()` -> hypothesis test for differential abundance
+* Test is between 2levels textttuntreated & textttreated of factor condition
+  * condition is what was specified when constructing pasilla object via the argument design=\simcondition
+    * can call each of these functions individually if wanted to modify behaviour/custom steps
+    
+```{r}
+# Look at results
+res <- results(pasilla)
+res[order(res$padj),] %>% head #head 6 lines of results
+```
+
+#### **Exploring the results**
+* 1st step after differential expression analysis = visualize following 3-4 basic plots 
+  * Histogram of p-values
+  * MA plot
+  * Oridination plot
+  * Heatmap can be instructive
+
+* <mark style='background-color:lightgreen'>These are essential data quality assesment measures</mark>
+  * Advice on quality assessment & control in CH13
+  
+```{r}
+#Histogram of p-values
+ggplot(as(res, "data.frame"), aes(x = pvalue)) +
+  geom_histogram(binwidth = 0.01, fill = "Royalblue", boundary = 0)
+```
+> Histogram of p-values of a differential expression analysis.
+
+* This histogram distribution displays 2 main components
+  * Uniform background w/ values between 0-1
+    * Corresponds to non-differentially expressed genes 
+    * Usually the majority of genes
+  * Peak of small p-values (left)
+    * Left hand peak = differnetially expressed genes (few isolated peaks in the middle towards right = genes w/ small counts & reflect discreteness of data)
+* In CH6 saw ratio of level of background to height of peak = rough indication of false discovery rate associated w/ calling genes in left-bin differentially expressed
+  * In this case, left-bin has all p-vlaues between 0-0.1 = 993 genes
+    * Background level is ~100 so false discovery rate associated w/ calling all genes in left-bin = ~10%
+    * <mark style='background-color:blue'>Note didn't go over ch6 but look into it</mark>
+    
+* **If background distribution is not uniform & has tilted shape w/ increase at the right -> indicates batch effects (underlying systematic variation making replicates look more different than expected)**
+
+* Q) If histogram for data is indicative of batch effects, what can you do?
+  * <mark style='background-color:blue'>Come back to this</mark>
+  
+* Produce MA plot using `plotMA()` in DESeq2 package
+
+```{r}
+plotMA(pasilla, ylim=c(-2,2))
+```
+> fold change versus mean of size-factor normalized counts. Logarithmic scaling is used for both axes. By default, points are colored red if the adjusted p-value is less than 0.1. Points which fall out of the 
+y-axis range are plotted as triangles.
+
+* Produce PCA plot similar to CH7 - use DESeq2 function `plotPCA()`
+```{r}
+pas_rlog <- rlogTransformation(pasilla)
+plotPCA(pas_rlog, intgroup=c("condition", "type")) + coord_fixed()
+```
+> PCA plot. The 7 samples are shown in the 2D plane spanned by their first two principal components.
+
+* This plot is useful for visualizing overall effect of experimental covariates and/or detecting batch effects
+  * PC1 mostly aligned w/ experimental covariate of interest (untreated/treated)
+  * PC2 roughly aligned w/ seq protocol (single/paired)
+* Used data transfromation (regularized log AKA rlog) - talked about in further statisitcal concepts section of this CH
+
+* Q) Do axes of PCA plots always have to align w/ specific experimental covariates? 
+  * <mark style='background-color:blue'>Come back to this</mark>
+  
+* Heatmaps can quickly show an overview of a matrix-like dataset (count tables)
+  * Below -> heatmap from rlog transformed data
+  * A matrix as large as counts(pasilla) -> not practical to plot all so plot subset of most variable genes
+  
+```{r}
+select <-  order(rowMeans(assay(pas_rlog)), decreasing = TRUE)[1:30]
+pheatmap( assay(pas_rlog)[select, ],
+     scale = "row",
+     annotation_col = as.data.frame(
+        colData(pas_rlog)[, c("condition", "type")] ))
+```
+> Heatmap of regularized log transformed data of the top 30 genes.
+
+* Default of `pheatmap()` -> arranges rows & columns of matrix by dendogram (unsupervised culstering)
+  * In above figure - clustering of of the columns (samples) dominated by type factor
+    * Shows differential expression analysis above was too naive -> should adjust for strong "nuisance" factor for testing differentially expressed genes between conditions (shown in Two-factor analysis of pasilla data section of this CH)
+
+#### Export the results
+* HTML report of results + plots & sortable/filterable columns can be exported via ReportingTools package on DESeqDataSet class processed via `DESeq()`
+  * ex) see RNA-seq differential expression vignette of ReportingTools package or manual page for the publish method of DESeqDataSet class
+  
+* CSV flile of results can be exported via `write.cvs()` (or counterpart from readr package)
+
+```{r}
+# write.csv(as.data.frame(res), file = "treated_vs_untreated.csv")
+```
+
+
+
+
+
+
+* **
+<p id="7"><b><font size="5">Critique of default choices and possible modifications</b></font><a href="#0"><sup>Return</sup></a></p>
+
+#### Few changes assumption
+* Assumption by default normalization & dispersion estimate by DESeq2 (& other differential expression methods) = most genes not differnetially expressed
+  * Assumption often reasonable (in well-designed experiments ask specific question so not everything changes at once)
+    * What to do if assumption is not correct?
+    * Solution: Don't apply operations on data w/ all genes
+      * ID subset of -ve control genes which we belive the assumption holds
+        * b/c prior knowledge or controlled abundance as external "spike in" (PhiX)
+        
+> For the normalization, although not for the dispersion estimation, one can slightly relax this assumption: it is still valid if many genes are changing, but in a way that is balanced between up- and downward directions
+
+* Task: Run DESeq2 workflow w/ size factors & dispersion parameters estimated only from a predefined subset of genes
+  * <mark style='background-color:red'>skipped</mark>
+  
+#### Point-like null hypothesis
+* Default of `DESeq()` tests vs null hypothesis (each gene has same abundance across conditions)
+  * If sample size limited, the statistical significance is strong enough
+  * If sample size increases, the statistical significance in the tests present w/o much biological relevance
+    * ex) many genes may be downregulated by downstream indirect effects
+      * can modify test to use a more permissive, interval-based null hypothesis (seen in further statistical concepts section of this chapter)
+
+* **
+<p id="8"><b><font size="5">Multi-factor design and linear models</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+<p id="9"><b><font size="5">Generalized linear models</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+<p id="10"><b><font size="5">Two-factor analysis of the pasilla data</b></font><a href="#0"><sup>Return</sup></a></p>
+
+
+* **
+<p id="11"><b><font size="5">Further statistical concepts</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+<p id="12"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
+
+* **
+
+<p id="x"><b><font size="5">Miscellaneous</b></font><a href="#0"><sup>Return</sup></a></p>
+
+*Run* = *Ctrl+Shift+Enter*  
+*Insert Chunk* =*Ctrl+Alt+I*  
+*Preview*=*Ctrl+Shift+K*
+
+</body>
+  
