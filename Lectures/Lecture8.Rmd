@@ -477,6 +477,245 @@ pheatmap( assay(pas_rlog)[select, ],
 * **
 <p id="8"><b><font size="5">Multi-factor design and linear models</b></font><a href="#0"><sup>Return</sup></a></p>
 
+#### What is multifactorial design?
+* In addition to siRNA knockdown of pasilla gene, want to ttest effect of a drug.
+  * Can use experiment to treat -ve control cells and/or cells w/ siRNA against pasilla gene using drug
+  * Use the notaion 
+    * where y = experimental measure of interest (transformed expression level of gene in this example)
+    * Coefficient B0 = base lvel of measurement in -ve control (also called the intercept)
+    * Design factors x1 & x2 = binary indicator variables
+      * x1 takes value=1 if siRNA was transfected (0 if not)
+      * x2 takes value=1 if durg was administered (0 if not)
+      * In this exp only siRNA used, no drugs (x1=1 & x2=0)
+        * 3rd and 4th term of this eqn simplified to 0
+          * so final eqn: y=B0+B1
+            * B1 will represent the difference between treatment + control
+    
+  \begin{equation}
+y = \beta_0 + x_1 \beta_1 + x_2 \beta_2 + x_1x_2\beta_{12}.
+\tag{8.1}
+\end{equation}
+
+> sometimes written w/ additional term x0 multiplied w/ B0 & x0=1 always.  
+This makes subsequent notation easier to keep track of b/c intercept easier to handle w/ B1 & B2
+
+
+* RNA-seq deals with a lot of genes so have to use this eqn multiple times (once per gene)
+
+* If measurements are on log scale then following eqn is on log fold change to treatment w/ siRNA
+  * B2 is log fold change due to treatment w/ drug (x2) (as with previous but w/ log)
+
+\begin{align}
+\beta_1 = y-\beta_0 &=
+\log_2(\text{expression}_{\text{treated}}) -  \log_2(\text{expression}_{\text{untreated}})\nonumber\\
+&=\log_2\frac{\text{expression}_{\text{treated}}}{\text{expression}_{\text{untreated}}}
+\tag{8.2} 
+\end{align}
+
+* What if treating cells w/ both siRNA+drug
+  * Then x1 = x2 = 1 and the eqn can be rewritten as
+
+\begin{equation}
+\beta_{12} = y - (\beta_0 + \beta_1 + \beta_2).
+\tag{8.3}
+\end{equation}
+
+* B12 is interpreted as "difference between observed outcome (y) & expected outcome from individual treatments (via adding to baseline the effect of siRNA alone (B1) + drug alone (B2)"
+  * B12 = interaction effect of siRNA and drug
+    * not associated w/ physical interaction (ex) effects of two different experimental factors don't add up but may combine synergistically)
+    
+* ex) Target drug of siRNA equivalent -> same side effect on cells then biologically expect
+  * B1=B2
+  * Also expect that combination of the drug + siRNA lead to no further effects (additive), then B12= -B1
+  
+* ex) Target drug of siRNA are parallel pathways (ie) buffer each other)
+  * Expect B1 & B2 to be small
+  * Also expect that the combination of drug + siRNA lead to synergistic effect, and B12 is large
+
+> Note addition is on log scale = multiplication on original scale
+
+* Don't always care about interactions
+  * Many exps designed w/ multi-factors & care about individual effects
+  * In this case -> combinatorial treatment may not be present in experimental design
+    * Model to use for analysis = eqn 8.1 above but remove end right term
+  * Can encode the exp design as a **design matrix**
+    * ex) for combinatorial exp. described above, this is the design matrix:
+    
+|x0|x1|x2|
+|---|---|---|
+|1|0|0|
+|1|1|0|
+|1|0|1|
+|1|1|1|
+
+* **Columns of the design matrix = experimental factors**
+* **Rows of the design matrix = different experimental conditions**
+  * 4 in this case
+
+* If combinatorial treatment is not performed, then design matrix reduced to 3 rows of the above matrix
+
+#### What about noise & replicates?
+* Eqn 8.1 above = conceptual decomposition of observed data -> effects caused by different exp. variables
+* If data (y's) were precise, then can use a linear system of eqns
+  * one eqn for each of the 4 exp. conditions (x's /rows) -> can solve for B's
+* Usually want to analyze real data affected w/ noise
+  * **Need replicates to estimate lvls of noise + assess uncertainty of estimated B's**
+    * Then can empirically assess if observed changes between conditions are significantly larger vs those due to exp/natural variation.
+    * Use the following eqn:
+    
+\begin{equation}
+y_{j} = x_{j0} \; \beta_0 + x_{j1} \; \beta_1 + x_{j2} \; \beta_2 + x_{j1}\,x_{j2}\;\beta_{12} + \varepsilon_j.
+\tag{8.5}
+\end{equation}
+
+* Added new term (Ej) & index (j) (Xj1, etc) to eqn 8.1
+  * index j = explicitly counts over individual replicates in exp.
+    * ex) if replicate 3 times for each of the 4 conditions -> j counts from 1 to 12 (AKA now design matrix has 12 roes & x<sub>jk</sub> is value of the matrix in _j_th row & _k_th column)
+  * The new term (Ej) = **residuals**
+    * absorbs differences between replicates
+    * Needs one additional modeling component
+      * the 12 modeling component in eqn 8.5 needs further info 
+        * Has more variables (12 epsilons & 4 betas) vs eqns (12, one for each j)
+        * Solution: **Ej needs to be small**
+          * One method = minimize sum of squared residueals
+
+\begin{equation}
+\sum_j \varepsilon_j^2 \quad\to\quad\text{min}.
+\tag{8.6}
+\end{equation}
+
+> Since B0 = the intercept, then x<sub>j0</sub>=1 for all j
+
+* This requirement is satisfied b/c 
+  * B's represent average effects of each experimental factors
+  * Residuals Ej reflect experimental fluctuations around mean between replicates
+  * This approach =**least sum of squares fitting*
+    * straightforward matrix algebra via `lm()`
+
+* Q) Alternative to writting eqn 8.5 is the following:
+  * How can this be mapped to eqn 8.5 (what's with the interation term xj1 xj2 B12)?
+* A) Notation -> sum extends over k=0,...,3
+  * Terms for k=0,1,2 are known
+  * Write B3 instead of B12 & xj3 = (xj1)(xj2)
+  * eqn 8.7 is better to use in computer softwar for linear models + math proofs
+    * Highlights scientific content of linear model (via design matrix)
+
+\begin{equation}
+y_{j} = \sum_k x_{jk} \; \beta_k + \varepsilon_j.
+\tag{8.7}
+\end{equation}
+
+* Task: Show if we fit eqn 8.5 to data, so that 8.6 holds, the fit of residuals (E(hat)j) average = 0
+<mark style='background-color:red'>Skipped for now</mark>
+
+#### Analysis of variance
+* Model via eqn 8.5 = **linear model**
+  * Implies that the criteria of eqn 8.6 -> used to fit data
+  * Advantage vs taking averages over replicates (for each distinct exp condition) & comparing these means across conditions
+    * Taking averages over replicates per condition -> replicate #s not all the same in different groups (or >=1 x-variables is continous)
+      * May end up fitting eqn 8.5 to data
+* Think about eqn 8.5 this way
+  * **Analysis of variance (ANOVA)**
+    * eqn 8.5 decomposes the variabillity of (y) observed during experiments into elementary components
+      * B0 = Baseline value -> variability caused via effect of 1st variable (B1)
+        * B1 variability caused by effect of 2nd variable B2
+        * B2 variability caused by effect of interation B12
+        * B12 variability unaccounted for
+          * unaccounted variability = noise/systematic variability
+
+#### Rombustness
+* **Sum of eqn 8.6 is sensitive to data outliers**
+  * One measurement (yj) w/ outlier value changes B estimate to be far from values measured by replicates
+    * **Methods used on least sum of squares have low breakdown pt**
+      * If one single data point is an outlier -> whole result strongly affected
+        * ex) Average of set of numbers (n) has breakdown pt of (1/n) -> average can be changed by changing a single number (n)
+      * If median is higher vs breakdown pt -> changing single# has no effect
+        * if changing single# has effect -> effect limited to range of data points in the middle of the ranking (those adjacent to rank n/2)
+        * To change median by high amount -> need to change half of the obs
+          * **Median is rombust -> breakdown point is 1/2**
+          * median of set of #'s y1,y2,... minimizes the sum
+          
+          \begin{equation}\sum_j|y_j-\beta_0|\end{equation}
+
+* To get a high degree of rombustness vs outliers, there choices other than sum of squares(eqn 8.6) used for minimization
+
+\begin{align}
+R &= \sum_j |\varepsilon_j| & \text{Least absolute deviations} \tag{8.8} \\
+R &= \sum_j \rho_s(\varepsilon_j)  & \text{M-estimation}  \tag{8.9} \\
+R &= Q_{\theta}\left( \{\varepsilon_1^2, \varepsilon_2^2,... \} \right)
+& \text{LTS, LQS}  \tag{8.10}  \\
+R &= \sum_j w_j \varepsilon_j^2 & \text{general weighted regression} \tag{8.11} 
+\end{align}
+
+* R is the quantity to be minimized
+  * eqn 8.8 = least absolute deviations regression - > generalization of median
+    * Harder to minimize vs sum of squares eqn (8.6)
+    * Less stable & efficient if data is limited/don't fit model
+  * eqn 8.9
+    * Uses penalization function p8 (least squares regression when ps(E)=E^2 special case)
+      * Looks like quadratic function for limited range of e
+        * Has a smaller slope + flattens/drops back to 0 for abs values |E| > scale parameter (s)
+        * Used to downweight effect of outliers (data pts w/ large residuals)
+        * Need to make choice for s -> determines what to call an outlier
+        * Can drop requirement that ps is quadratic around 0
+          * Second derivative must be positive for this to occur
+    * Variety of choices for function ps found in literature
+      * Aims to get best estimator for statistical tests (ex) bias & efficiency) when data fits model
+        * Also limits/prevents influence of data points not estimating for statistics
+        
+* Q) Plot graph of function ps(E) for M-estimators
+* A)
+
+\begin{equation*}
+\rho_s(\varepsilon) = \left\{
+  \begin{array}{cc}
+\frac{1}{2}\varepsilon^2, \quad\text{for }|\varepsilon|< s\\
+s|\varepsilon|-\frac{1}{2}s^2, \quad\text{for }|\varepsilon|\ge s\\
+  \end{array}
+\right.
+\end{equation*}
+
+```{r}
+# which is this code
+rho = function(x, s)
+  ifelse(abs(x) < s, x^2 / 2,  s * abs(x) - s^2 / 2)
+
+df = tibble(
+  x        = seq(-7, 7, length.out = 100),
+  parabola = x ^ 2 / 2,
+  Huber    = rho(x, s = 2))
+
+ggplot(reshape2::melt(df, id.vars = "x"),
+  aes(x = x, y = value, col = variable)) + geom_line()
+```
+> Graph of ρs(ε), for a choice of s=2.
+
+* Eqn 8.10 generalizes eqn 8.6 (least sum of squares method)
+  * Uses Least quantile of squares regression (LQS) -> sum over squared individuals replaced w/ quantile
+    * ex) Q50 = median, Q90 = 90% quantile
+  * The variation Least trimmed sum of squares regression (LTS) -> sum of squared residuals used, but sum doesn't apply for all residuals (only for smallest residuals in the fraction 0<=theta<=1)
+  * Both cases -> outlier data points causing large residuals & if rare -> don't affect quantile/trimmed sum
+  * Problem:
+    * Least sum of squares by eqn 8.6 uses straightforward linear algebra
+      * M-estimation (eqn 8.9) & LQS+LTS (eqn 8.10)
+      
+* Eqn 8.11 is a complex way of weighing down outliers
+  * Assumes there is a way to decide the weight (wj) for each observation (which should weigh down outliers)
+    * In "Further statistical concepts" of this CH -> DEseq package approach
+      * Leverage of each data point on estimated B's assessed via Cook's distance
+        * For data points w/ large Cook's distance -> weight (wj) = 0
+        * All other data points -> weight (wj) = 1
+      * All outlier data points discarded (wj=0) & ordinary regression performed on points where wj=1
+  * This uses straightforward linear algebra
+  
+* All these approaches to outlier rombustness add a subjective component & **rely on sufficient replication**
+  * Subjectivness reflected via parameter choices
+    * s in eqn 8.9
+    * theta in eqn 8.10
+    * weights in eqn 8.10
+    
+* Task: Search for packages implementing the above eqns for rombust regression methods <mark style='background-color:red'>skipped</mark>
+
 * **
 <p id="9"><b><font size="5">Generalized linear models</b></font><a href="#0"><sup>Return</sup></a></p>
 
