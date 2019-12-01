@@ -12,6 +12,7 @@ library(ggplot2)
 library(matrixStats)
 library(dplyr)
 library(pheatmap)
+library(vsn) #bioconductor
 ```
 
 <body>
@@ -52,7 +53,7 @@ library(pheatmap)
   * This is usually impossible b/c protocols are not 100% efficient
   * Some molecules lost during each step
   * Solution
-    * Sequence & count a **staticically sample**
+    * Sequence & count a **staticical sample**
       * Sample size depends on complexity of sequence pool assayed
       * Hope that sample size is enough to represent all trends + patterns
 
@@ -482,28 +483,28 @@ pheatmap( assay(pas_rlog)[select, ],
   * Can use experiment to treat -ve control cells and/or cells w/ siRNA against pasilla gene using drug
   * Use the notaion 
     * where y = experimental measure of interest (transformed expression level of gene in this example)
-    * Coefficient B0 = base lvel of measurement in -ve control (also called the intercept)
+    * Coefficient β0 = base lvel of measurement in -ve control (also called the intercept)
     * Design factors x1 & x2 = binary indicator variables
       * x1 takes value=1 if siRNA was transfected (0 if not)
       * x2 takes value=1 if durg was administered (0 if not)
       * In this exp only siRNA used, no drugs (x1=1 & x2=0)
         * 3rd and 4th term of this eqn simplified to 0
-          * so final eqn: y=B0+B1
-            * B1 will represent the difference between treatment + control
+          * so final eqn: y=β0+β1
+            * β1 will represent the difference between treatment + control
     
   \begin{equation}
 y = \beta_0 + x_1 \beta_1 + x_2 \beta_2 + x_1x_2\beta_{12}.
 \tag{8.1}
 \end{equation}
 
-> sometimes written w/ additional term x0 multiplied w/ B0 & x0=1 always.  
-This makes subsequent notation easier to keep track of b/c intercept easier to handle w/ B1 & B2
+> sometimes written w/ additional term x0 multiplied w/ β0 & x0=1 always.  
+This makes subsequent notation easier to keep track of b/c intercept easier to handle w/ β1 & β2
 
 
 * RNA-seq deals with a lot of genes so have to use this eqn multiple times (once per gene)
 
 * If measurements are on log scale then following eqn is on log fold change to treatment w/ siRNA
-  * B2 is log fold change due to treatment w/ drug (x2) (as with previous but w/ log)
+  * β2 is log fold change due to treatment w/ drug (x2) (as with previous but w/ log)
 
 \begin{align}
 \beta_1 = y-\beta_0 &=
@@ -520,17 +521,17 @@ This makes subsequent notation easier to keep track of b/c intercept easier to h
 \tag{8.3}
 \end{equation}
 
-* B12 is interpreted as "difference between observed outcome (y) & expected outcome from individual treatments (via adding to baseline the effect of siRNA alone (B1) + drug alone (B2)"
-  * B12 = interaction effect of siRNA and drug
+* β12 is interpreted as "difference between observed outcome (y) & expected outcome from individual treatments (via adding to baseline the effect of siRNA alone (β1) + drug alone (β2)"
+  * β12 = interaction effect of siRNA and drug
     * not associated w/ physical interaction (ex) effects of two different experimental factors don't add up but may combine synergistically)
     
 * ex) Target drug of siRNA equivalent -> same side effect on cells then biologically expect
-  * B1=B2
-  * Also expect that combination of the drug + siRNA lead to no further effects (additive), then B12= -B1
+  * β1=β2
+  * Also expect that combination of the drug + siRNA lead to no further effects (additive), then β12= -β1
   
 * ex) Target drug of siRNA are parallel pathways (ie) buffer each other)
-  * Expect B1 & B2 to be small
-  * Also expect that the combination of drug + siRNA lead to synergistic effect, and B12 is large
+  * Expect β1 & β2 to be small
+  * Also expect that the combination of drug + siRNA lead to synergistic effect, and β12 is large
 
 > Note addition is on log scale = multiplication on original scale
 
@@ -557,9 +558,9 @@ This makes subsequent notation easier to keep track of b/c intercept easier to h
 #### What about noise & replicates?
 * Eqn 8.1 above = conceptual decomposition of observed data -> effects caused by different exp. variables
 * If data (y's) were precise, then can use a linear system of eqns
-  * one eqn for each of the 4 exp. conditions (x's /rows) -> can solve for B's
+  * one eqn for each of the 4 exp. conditions (x's /rows) -> can solve for β's
 * Usually want to analyze real data affected w/ noise
-  * **Need replicates to estimate lvls of noise + assess uncertainty of estimated B's**
+  * **Need replicates to estimate lvls of noise + assess uncertainty of estimated β's**
     * Then can empirically assess if observed changes between conditions are significantly larger vs those due to exp/natural variation.
     * Use the following eqn:
     
@@ -584,19 +585,19 @@ y_{j} = x_{j0} \; \beta_0 + x_{j1} \; \beta_1 + x_{j2} \; \beta_2 + x_{j1}\,x_{j
 \tag{8.6}
 \end{equation}
 
-> Since B0 = the intercept, then x<sub>j0</sub>=1 for all j
+> Since β0 = the intercept, then x<sub>j0</sub>=1 for all j
 
 * This requirement is satisfied b/c 
-  * B's represent average effects of each experimental factors
+  * β's represent average effects of each experimental factors
   * Residuals Ej reflect experimental fluctuations around mean between replicates
   * This approach =**least sum of squares fitting*
     * straightforward matrix algebra via `lm()`
 
 * Q) Alternative to writting eqn 8.5 is the following:
-  * How can this be mapped to eqn 8.5 (what's with the interation term xj1 xj2 B12)?
+  * How can this be mapped to eqn 8.5 (what's with the interation term xj1 xj2 β12)?
 * A) Notation -> sum extends over k=0,...,3
   * Terms for k=0,1,2 are known
-  * Write B3 instead of B12 & xj3 = (xj1)(xj2)
+  * Write β3 instead of β12 & xj3 = (xj1)(xj2)
   * eqn 8.7 is better to use in computer softwar for linear models + math proofs
     * Highlights scientific content of linear model (via design matrix)
 
@@ -617,15 +618,15 @@ y_{j} = \sum_k x_{jk} \; \beta_k + \varepsilon_j.
 * Think about eqn 8.5 this way
   * **Analysis of variance (ANOVA)**
     * eqn 8.5 decomposes the variabillity of (y) observed during experiments into elementary components
-      * B0 = Baseline value -> variability caused via effect of 1st variable (B1)
-        * B1 variability caused by effect of 2nd variable B2
-        * B2 variability caused by effect of interation B12
-        * B12 variability unaccounted for
+      * β0 = Baseline value -> variability caused via effect of 1st variable (β1)
+        * β1 variability caused by effect of 2nd variable β2
+        * β2 variability caused by effect of interation β12
+        * β12 variability unaccounted for
           * unaccounted variability = noise/systematic variability
 
 #### Rombustness
 * **Sum of eqn 8.6 is sensitive to data outliers**
-  * One measurement (yj) w/ outlier value changes B estimate to be far from values measured by replicates
+  * One measurement (yj) w/ outlier value changes β estimate to be far from values measured by replicates
     * **Methods used on least sum of squares have low breakdown pt**
       * If one single data point is an outlier -> whole result strongly affected
         * ex) Average of set of numbers (n) has breakdown pt of (1/n) -> average can be changed by changing a single number (n)
@@ -702,7 +703,7 @@ ggplot(reshape2::melt(df, id.vars = "x"),
 * Eqn 8.11 is a complex way of weighing down outliers
   * Assumes there is a way to decide the weight (wj) for each observation (which should weigh down outliers)
     * In "Further statistical concepts" of this CH -> DEseq package approach
-      * Leverage of each data point on estimated B's assessed via Cook's distance
+      * Leverage of each data point on estimated β's assessed via Cook's distance
         * For data points w/ large Cook's distance -> weight (wj) = 0
         * All other data points -> weight (wj) = 1
       * All outlier data points discarded (wj=0) & ordinary regression performed on points where wj=1
@@ -719,12 +720,315 @@ ggplot(reshape2::melt(df, id.vars = "x"),
 * **
 <p id="9"><b><font size="5">Generalized linear models</b></font><a href="#0"><sup>Return</sup></a></p>
 
+* Two more theoretical concepts
+  * Eqn 8.5 models the expected value of the outcome variable(y) into a linear function of a design matrix -> fit data via least sum of squares criteria (eqn 8.6)
+    * These assumptions generalized below
+
+#### Model data on a transformed scale
+* Can consider the data not to be on the scale obtained, but on a scale after transformation (ex) log transformation)
+  * ex) linear model in eqn 8.5 may not be useful for modeling outcomes bound within an interval for indicating disease risk (ie) 0 to 1)
+* For linear models, values of y should cover the whole real axis
+  * If transforming the expression on the right w/ a sigmoid function (ex) f(y) = 1/(1+e<sup>-y</sub>) -> the range of the function is bound between 0 & 1 and more useful for the disease risk model above
+    * This function is the logistic function associated w/ logistic regression model 
+
+#### Other error distributions
+* Generalizing the maximization criterion (eqn 8.6)
+  * This criteria can be derived via specific probabilistic model (Maximium likelihood principle - seen i nCH2)
+  * Consider the follwing probability model
+    
+\begin{equation}
+p(\varepsilon_j) = \frac{1}{\sqrt{2\pi}\sigma} \exp \frac{\varepsilon_j^2}{2\sigma^2},
+\tag{8.12}
+\end{equation}
+
+* This model assumes residuals follow a normal distribution (mean 0 & stdev σ)
+  * Can demand from a good model (good set of β's) -> these probabilities are large 
+  
+\begin{equation}
+\prod_j p(\varepsilon_j) \quad\to\quad\text{max}.
+\tag{8.13}
+\end{equation}
+
+* Q) Show that the maximizing the likelihood (criteria 8.13) is = to minimizing the sum of squared residuals (criteria 8.6)
+* A) Insert ((8.12)) into ((8.13)) and take the logarithm.
+
+* Core concepts 
+  * Left hand side of eqn 8.13 (product of probabilities of residuals) = function of the model parameters β1,β2,... & data y1, y2,... -> this is f(β,y)
+    * Think of the model parameters β as fixed
+      * Then the collapsed function f(y) indicates the probability fo the data
+    * Think of the data given
+      * Then f(β) is a function of model parameters - indicates the likelihood
+      * We use this to optimize criteria 8.6 (which changes criteria 8.13 also)
+        * β's obtained are called maximul-likelihood estimates 
+  * Can make a probabilistic model w/ this generalization
+    * Use densities from other distributions (except normal eqn 8.12)
+      * ex) count data - use a gamma-Poisson distribution
+      
+> It is good to remember that, while we can use the normal distribution as a convenient argument to motivate least sum of squares regression through the maximum likelihood principle, the data do not have to be distributed according to the normal for least sum of squares regression to provide a useful result. In fact, least sum of squares fitting often provides useful estimates for the 
+βs even when the data are non-normal, although that depends on the specific circumstances.
+
+#### Generalized linear model for count data
+* Differential expression analysis in DESeq2 uses a generalize linear model
+
+\begin{align}
+K_{ij} &\sim \text{GP}(\mu_{ij}, \alpha_i)  \tag{8.14} \\
+\mu_{ij} &= s_j\, q_{ij}  \tag{8.15} \\
+\log_2(q_{ij}) &= \sum_k x_{jk} \beta_{ik}.  \tag{8.16} 
+\end{align}
+
+* Step-by-step
+  * Counts (Kij) for gene i & sample j -> modeled via gamma-Poisson (GP) distribution w/ 2 parameters
+    * Mean (uij) & disperson (ai)
+  * Default dispersion is different for each gene i BUT same across all samples
+    * Therefore, no index j
+  * Eqn 8.15 states that mean made from sample-specific size factor (sj & qij)
+    * This is proportional to the ture expected concentration of fragments for gene i & sample j
+  * Value of qij -> given by linear model in 3rd line (link function log2)
+  * Design matrix (xjk) same for all genes (therefore, does not depend on i)
+    * rows j = smaples
+    * columns k = experimental factors
+  * For a pairwise comparison, the design matrix has only 2 columns
+    * one col filled w/ 1's (=β0 in eqn 8.1)
+    * other col contains 1 or 0 (depends on sample group)
+    * Coefficients βuk give log2 fold changes for gene i for each col of the design matrix (X)
+
+>The model can be generalized to use sample- and gene-dependent normalization factors (sij) . This is explained in the documentation of the DESeq2 package.
+
+
 * **
 <p id="10"><b><font size="5">Two-factor analysis of the pasilla data</b></font><a href="#0"><sup>Return</sup></a></p>
 
+* Other than treating w/ siRNA (A basic analysis in this CH8)
+  * Pasilla data has another covariate (type) -> indicates type of sequencing performed
+* In exploratory data analysis plots (A basic analysis in this CH8), type of sequencing has high systematic effect on data
+  * The previous plots (histogram, MA plots , ordination, & heatmap) did not account for type of sequencing
+  * Accounting for type of sequencing should give a better picture of which differences in data is attributed to the treatment (siRNA)/or confounded or masked by sequencing type
+  
+```{r}
+pasillaTwoFactor = pasilla
+design(pasillaTwoFactor) = formula(~ type + condition)
+pasillaTwoFactor = DESeq(pasillaTwoFactor)
+```
+
+* The two variables _type_ & _condition_
+  * More interested in condition
+    * DESeq2 puts this at the end of the formula
+      * Doesn't affect model fitting
+      * Helps simplify some of the results
+* Acess the results using `results()` -> returns a dataframe w/ statistics of each gene
+
+```{r}
+res2 = results(pasillaTwoFactor)
+head(res2, n = 3)
+```
+
+* Can also get log2 fold changes, p-values, and adjusted p-values associated w/ the type variable
+  * `results()` takes an argument _contrast_ and lets user pick the name of variable for
+    * lvl corresponding to numerator of fold change
+    * lvl corresponding to denominator of fold change
+    
+```{r}
+resType = results(pasillaTwoFactor,
+  contrast = c("type", "single", "paired"))
+head(resType, n = 3)
+```
+
+* This analysis takes in the variable _type_ as nusance factor (AKA blocking factor)
+  * in "A basic analysis section" -> compared 2 groups
+  * What is the diifference between analyses?
+    * Plot p-values from both analyses against each other
+    
+```{r}
+trsf = function(x) ifelse(is.na(x), 0, (-log10(x)) ^ (1/6))
+ggplot(tibble(pOne = res$pvalue,
+              pTwo = res2$pvalue),
+    aes(x = trsf(pOne), y = trsf(pTwo))) +
+    geom_hex(bins = 75) + coord_fixed() +
+    xlab("Single factor analysis (condition)") +
+    ylab("Two factor analysis (type + condition)") +
+    geom_abline(col = "orange")
+```
+> Comparison of p-values from the models with a single factor (condition) and with two factors (type + condition). The axes correspond to (−log10p)<sup>1/6</sup>, an arbitrarily chosen monotonically decreasing transformation that compresses the dynamic range of the p-values for the purpose of visualization. We can see a trend for the joint distribution to lie above the bisector, indicating that the small p-values in the two-factor analysis are generally smaller than those in the one-factor analysis.
+
+* The above figure shows p-values in 2-factor analysis similar to 1-factor analysis
+  * 2-facotr analysis generally smaller
+    * leads to a small increase in power (ex) count #genes passing a certain significance threshold in each case)
+    
+```{r}
+compareRes = table(
+   `simple analysis` = res$padj < 0.1, #0.1 is FDR treshold of 10%
+   `two factor` = res2$padj < 0.1 )
+addmargins( compareRes )
+```
+
+* 2-factor analysis has found 1325 differentially expressed gene w/ FDR treshold of 10%
+  * 1 factor analysis found 1061 genes differentially expressed
+  * Therefore, the 2-factor analysis has increased detection power
+    * gain can be larger/smaller depending on data
+* Proper choice of model depends on experimental design & data quality
+
+* Q) <mark style='background-color:red'>skipped for now </mark>
 
 * **
 <p id="11"><b><font size="5">Further statistical concepts</b></font><a href="#0"><sup>Return</sup></a></p>
+
+#### Sharing of dispersion information across genes
+* Seen in explaination of Bayesian (or emperical Bayes) analysis in CH6
+  * use aditional info to improve estimates (prior information, a priori, or from analysis of other similar data)
+  * This idea is useful if the data if noisy
+* DESeq uses emperical Bayes approach for estimation of dispersion parameters (a's in eqn 8.16)
+  * can also estimate log fold changes (B's)
+
+* Priors in this case is from distributions of maximum-likelihood estimates (MLEs) across all gnees
+  * Both of these distributions (a's and B's) are unimodal
+    * B's -> peak around 0
+    * a's -> peak around particular value (typical dispersion)
+* Emperical Bayes algorithm shrinks each per-gene MLE to the peak (amount depends on sharpness of empirical prior distribution & percision of ML estimate)
+  * Percision of ML estimate is better -> less shrinkage
+  * Below figure visualizes the approach for B's
+  
+* Task
+  * Advanced: check source code producing below figure
+```{r}
+
+```
+
+  <mark style='background-color:red'>skipped for now</mark>
+  
+#### Count data transformations 
+* Testing differential exprssion on raw counts -> use discrete distirbutions
+* For downstream analyses (visualization/clustering) -> may want to use transfromed count data
+  * Log transformations good but count values for a gene can become 0
+    * May want to use pseudocounts (transformation by below formula)
+      * n = count values
+      * n0 = shomehow chosen +ve constant
+
+\begin{equation}
+y = \log_2(n + 1)\quad\mbox{or more generally,}\quad y = \log_2(n + n_0),
+\tag{8.17}
+\end{equation}
+
+* Looking at 2 alternative approaches w/ theoretical justification + rational way of choosing parameter n0
+  * Method 1 = incorporates priors to sample differences
+  * Method 2 = variance-stabilizing transformations
+  
+* Variance-stabilizing transformation
+  * Can compute piece-wise linear transformation (CH4) for discrete set of random variables 
+  * Can use calculus to derive smooth variance-stabilizing transformation for gamma-Poisson mixture
+  * Both computations implemented in DESeq2 package
+  
+```{r}
+vsp = varianceStabilizingTransformation(pasilla)
+```
+
+* Using first sample as an example, let's see the effect on the data
+  * Compare w/ log2 transformation
+```{r}
+j = 1
+ggplot(tibble(
+         x    = assay(pasilla)[, j],
+         VST  = assay(vsp)[, j],
+         log2 = log2(assay(pasilla)[, j])) %>%
+             reshape2::melt(id.vars = "x"),
+       aes(x = x, y = value, col = variable)) +
+  geom_line() + xlim(c(0, 600)) + ylim(c(0, 9)) +
+  xlab("counts") + ylab("transformed")
+```
+> Graph of variance-stabilizing transformation for the data of one of the samples, and for comparison also of the log2 transformation. The variance-stabilizing transformation has finite values and finite slope even for counts close to zero, whereas the slope of log2 becomes very steep for small counts and is undefined for counts of zero. For large counts, the two transformation are essentially the same.
+
+* Regularized logarithm (rlog) transformation
+  * 2nd way to transform data 
+  * Distinct from variance stabilizaiton
+    * Uses shrinkage estimation previously talked about
+  * Transform original count data -> log2-like scale via fitting "trivial" model w/ separate term for each sample
+    * Prior distribution on coefficients is estimated from data
+  * Fitting uses regularaziation as previously discussed
+  * Transformed data (qij) = defined in eqn 8.16
+    * Design matrix (xij) is of size (K)(K+1)
+      * K= #samples w/ the form 
+
+\begin{equation}
+X=\left(\begin{array}{ccccc}1&1&0&0&\cdot\\1&0&1&0&\cdot\\1&0&0&1&\cdot\\\cdot&\cdot&\cdot&\cdot&\cdot\end{array}\right).
+\tag{8.18}
+\end{equation}
+
+* w/o priors -> design matrix leads to non-unique solution
+  * w/ prior on non-intercept B's = unique solution
+* DESeq implements this in the `rlogTransformation()` function
+  * rlog transformation is approximately variance-stabilizing
+    * better w/ data where size factor for each sample is distincy
+    
+* Q) Plot mean against standard deviation between replicates for shifted log (eqn 8.17) - this is the regularized log transformation & variance-stabilizing transformation
+* A) 
+
+```{r}
+rlp = rlogTransformation(pasilla)
+
+msd = function(x)
+  meanSdPlot(x, plot = FALSE)$gg + ylim(c(0, 1)) +
+     theme(legend.position = "none")
+
+gridExtra::grid.arrange(
+  msd(log2(counts(pasilla, normalized = TRUE) + 1)) +
+    ylab("sd(log2)"),
+  msd(assay(vsp)) + ylab("sd(vst)"),
+  msd(assay(rlp)) + ylab("sd(rlog)"),
+  ncol = 3
+)
+```
+> Per-gene standard deviation (sd, taken across samples) against the rank of the mean, for the shifted logarithm log2(n+1), the variance-stabilizing transformation (vst) and the rlog. Note that for the leftmost ≈ 2,500 genes, the counts are all zero, and hence their standard deviation is zero. The mean-sd dependence becomes more interesting for genes with non-zero counts. Note also the high value of the standard deviation for genes that are weakly detected (but not with all zero counts) when the shifted logarithm is used, and compare to the relatively flat shape of the mean-sd relationship for the variance-stabilizing transformation. 
+
+#### Dealing w/ outliers
+* Data sometimes has isolated instances of large counts which is unrelated to experiment (sometimes outliers)
+* Many reasons for outliers (technical/experimental artifacts/read mapping problems for genetically differing samples/rare biolocial events)
+* People usually interested in genes w/ consistent behaviour
+  * By defualt, genes affected by outliers are set to the side by DESeq
+* Function calculates a diagnostic test for outliers for every gene & every sample via **Cook's distance**
+  * Measures of how much a single sample is influencing fitted coefficients for a gene
+  * Large Cook's distances = indicates outlier count
+    * DESeq2 flags genes above Cook's distance cutoff -> sets p-values & adjusted p-values to NA
+    * Default cutoff depends on sample size & #parameters to be estimated 
+      * DESeq2 uses 99% quantile of F(p,m-p) distribution (p=#parameters including intercept & m=#samples)
+      
+* Q) Check documentation to see how default cutoff can be changed & how outlier removal function can be distabled
+  * How can computed Cook's distances be accessed?
+
+* w/ many degrees of freedom (more samples than #of parameters to be estimated), may not want to remove entire genes from analysis b/c their data have a single count outlier
+  * Alternative strategy is to replace #outlier counts w/ trimemd mean over all samples & adjust by size factor for the sample
+    * This is a conservative approach -> won't lead to false +ves (replaces outlier values w/ value predicted by null hypothesis)
+    
+#### Tests of log2 fold change above/below threshold
+* How add requirement to detect effects w/ strong size (but small) vs statistically significant ones?
+* 2 arguements to `results()` allow for threshold-based Wald tests
+  * lfcTreshold -> takes numeric non-ve threshold value
+  * altHypothesis -> specifies test
+* Can take 1 of the four following values (B=log2 fold change specifiec by name arguement, theta=represents lfcTreshold)
+  * greater: B>theta
+  * less: B<(-theta)
+  * greaterAbs: |B| > theta (2-tailed test)
+  * lessAbs: |B| < theta (p-values are max of upper/lower tests)
+* Demonstrated in the following code -> visuallized by MA-plots
+  * `plotMA()` in DESeq2 uses base graphics
+```{r}
+par(mfrow = c(4, 1), mar = c(2, 2, 1, 1))
+myMA = function(h, v, theta = 0.5) {
+  plotMA(pasilla, lfcThreshold = theta, altHypothesis = h,
+         ylim = c(-2.5, 2.5))
+  abline(h = v * theta, col = "dodgerblue", lwd = 2)
+}
+myMA("greaterAbs", c(-1, 1))
+myMA("lessAbs",    c(-1, 1))
+myMA("greater",          1)
+myMA("less",         -1   )
+```
+>MA-plots of tests of log 2 fold change with respect to a threshold value. From top to bottom, the tests are for , , , and.
+
+* Producing results table instead of MS plots, use the same arguments in `plotMA()` above but exclude ylim to the `results()` function
+
+```{r}
+results(pasilla, lfcThreshold = 0.5, altHypothesis = "greaterAbs")
+```
+
 
 * **
 <p id="12"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
