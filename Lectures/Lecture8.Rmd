@@ -1059,7 +1059,8 @@ results(pasilla, lfcThreshold = 0.5, altHypothesis = "greaterAbs")
 * **
 <p id="12"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
 
-#https://www.bioconductor.org/help/course-materials/2016/CSAMA/lab-3-rnaseq/rnaseq_gene_CSAMA2016.html#creating-a-dgelist-for-use-with-edger
+# https://www.bioconductor.org/help/course-materials/2016/CSAMA/lab-3-rnaseq/rnaseq_gene_CSAMA2016.html#creating-a-dgelist-for-use-with-edger
+# WORK IN PROGRESS - STILL FIGURING THINGS OUT
 
 #### Excercise 8.1
 
