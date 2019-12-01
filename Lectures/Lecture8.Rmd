@@ -13,6 +13,7 @@ library(matrixStats)
 library(dplyr)
 library(pheatmap)
 library(vsn) #bioconductor
+library(edgeR) #bioconductor
 ```
 
 <body>
@@ -130,7 +131,7 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
     * Statistical sampling models discussed will rely on values of direct "raw" counts of seq reads (not derived quantity (ex) normalized counts/counts of covered bp) -> leads to nonsense results)
     
 #### Challenges of count data 
-* Data have large range (0-millions)
+* Data have large range (0 to millions)
   * varience & distribution shape of data in different parts of range differs = **heteroskedasticity**
 * Data are non-negative integers & distribution not symmetric
   * Log-normal distribution models can be poor fit
@@ -145,7 +146,7 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
     * resampling/permutation based methods don't have enough power
     * Need to make distribution assumptions
       * what allows for computation of **probabilities of rare events in tails of distribution** -> really high/low counts from small #of distribution parameters
-* Estimation of dispersion parameters is difficult w/ small sample sies
+* Estimation of dispersion parameters is difficult w/ small sample sizes
   * need to make further assumptions -> genes w/ similar locations have similar dispersions = sharing of info across genes
     * Dispersion parameters = distributions parameterized in various ways
       * parameters = measure of location & dispersion
@@ -156,7 +157,7 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
   * Alternative splicing & choices of start/stop sites -> forms many alternative isoforms from the same gene locus
     * Can use high-throughput seq to detect isoform structures of transcripts
 * Fragments characteristic for specific isoform -> can detect isoform specific abundances 
-* Current RNA-seq data -> short fragments of full-length isoforms = ard to assemble full length isoform structures/abundances
+* Current RNA-seq data -> short fragments of full-length isoforms = hard to assemble full length isoform structures/abundances
   * Procedures have modest aim of making local statements (inclusion/exclusion of individual exons) = more rombust
 
 * **
@@ -193,6 +194,8 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
   * Dependencies are negligibly small so can ignore
     * B/c n much larger than r -> #genes large and each individual ni is small vs summed total (n)
     
+* n=total library size (total #fragemnts)
+    
 #### Normalization
 * Systematic biases affect data generation - should account for
 * The term **normalization** commonly used for this (often misleading - > nothing to do w/ normal distibution or data transformation)
@@ -205,7 +208,7 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
     
 * Ex) Dataset w/ 5 genes + 2 samples
   * If estimate s for each of the 2 samples via sum of counts -> slope of blue line is the ratio (see below image)
-    * This means, gnee C is downregulated in sample2 vs sample1 & other genes lowly upregulated
+    * This means, gene C is downregulated in sample2 vs sample1 & other genes lowly upregulated
   * If we estimate s so that ratios -> slope of red line
     * Still conclude C is downregulated & other genes are unchanged
     * This estimate is more parsimonious & perferred
@@ -418,7 +421,12 @@ plotPCA(pas_rlog, intgroup=c("condition", "type")) + coord_fixed()
 * Used data transfromation (regularized log AKA rlog) - talked about in further statisitcal concepts section of this CH
 
 * Q) Do axes of PCA plots always have to align w/ specific experimental covariates? 
-  * <mark style='background-color:blue'>Come back to this</mark>
+  * In terms of single or paired-end data
+    * Treated should always align w/ treated paired/single
+    * Untreated should always align w/ untreated paired/single
+    * This is because paired end sequencing should contain the single end sequence
+  * In terms of paired end treated vs untreated
+    * No these should not align b/c different sequences expected
   
 * Heatmaps can quickly show an overview of a matrix-like dataset (count tables)
   * Below -> heatmap from rlog transformed data
@@ -538,7 +546,7 @@ This makes subsequent notation easier to keep track of b/c intercept easier to h
 * Don't always care about interactions
   * Many exps designed w/ multi-factors & care about individual effects
   * In this case -> combinatorial treatment may not be present in experimental design
-    * Model to use for analysis = eqn 8.1 above but remove end right term
+    * Model to use for analysis = eqn 8.1 above but remove end right term y=b0+b1 or y=b0+b2
   * Can encode the exp design as a **design matrix**
     * ex) for combinatorial exp. described above, this is the design matrix:
     
@@ -553,7 +561,7 @@ This makes subsequent notation easier to keep track of b/c intercept easier to h
 * **Rows of the design matrix = different experimental conditions**
   * 4 in this case
 
-* If combinatorial treatment is not performed, then design matrix reduced to 3 rows of the above matrix
+* If combinatorial treatment is not performed, then design matrix reduced to 3 rows of the above matrix (ex) remove the last row where x1=1 & x2=1)
 
 #### What about noise & replicates?
 * Eqn 8.1 above = conceptual decomposition of observed data -> effects caused by different exp. variables
@@ -571,14 +579,14 @@ y_{j} = x_{j0} \; \beta_0 + x_{j1} \; \beta_1 + x_{j2} \; \beta_2 + x_{j1}\,x_{j
 
 * Added new term (Ej) & index (j) (Xj1, etc) to eqn 8.1
   * index j = explicitly counts over individual replicates in exp.
-    * ex) if replicate 3 times for each of the 4 conditions -> j counts from 1 to 12 (AKA now design matrix has 12 roes & x<sub>jk</sub> is value of the matrix in _j_th row & _k_th column)
+    * ex) if replicate 3 times for each of the 4 conditions -> j counts from 1 to 12 (AKA now design matrix has 12 rows & x<sub>jk</sub> is value of the matrix in _j_th row & _k_th column)
   * The new term (Ej) = **residuals**
     * absorbs differences between replicates
     * Needs one additional modeling component
       * the 12 modeling component in eqn 8.5 needs further info 
         * Has more variables (12 epsilons & 4 betas) vs eqns (12, one for each j)
         * Solution: **Ej needs to be small**
-          * One method = minimize sum of squared residueals
+          * One method = minimize sum of squared residuals
 
 \begin{equation}
 \sum_j \varepsilon_j^2 \quad\to\quad\text{min}.
@@ -590,7 +598,7 @@ y_{j} = x_{j0} \; \beta_0 + x_{j1} \; \beta_1 + x_{j2} \; \beta_2 + x_{j1}\,x_{j
 * This requirement is satisfied b/c 
   * β's represent average effects of each experimental factors
   * Residuals Ej reflect experimental fluctuations around mean between replicates
-  * This approach =**least sum of squares fitting*
+  * This approach =**least sum of squares fitting**
     * straightforward matrix algebra via `lm()`
 
 * Q) Alternative to writting eqn 8.5 is the following:
@@ -625,7 +633,7 @@ y_{j} = \sum_k x_{jk} \; \beta_k + \varepsilon_j.
           * unaccounted variability = noise/systematic variability
 
 #### Rombustness
-* **Sum of eqn 8.6 is sensitive to data outliers**
+* **Sum of eqn 8.6 is sensitive to data outliers (because eqn 8.5 is linear system of eqn?)**
   * One measurement (yj) w/ outlier value changes β estimate to be far from values measured by replicates
     * **Methods used on least sum of squares have low breakdown pt**
       * If one single data point is an outlier -> whole result strongly affected
@@ -833,7 +841,7 @@ resType = results(pasillaTwoFactor,
 head(resType, n = 3)
 ```
 
-* This analysis takes in the variable _type_ as nusance factor (AKA blocking factor)
+* This analysis takes in the variable _type_ as **nuisance factor (AKA blocking factor)**
   * in "A basic analysis section" -> compared 2 groups
   * What is the diifference between analyses?
     * Plot p-values from both analyses against each other
@@ -867,7 +875,25 @@ addmargins( compareRes )
     * gain can be larger/smaller depending on data
 * Proper choice of model depends on experimental design & data quality
 
-* Q) <mark style='background-color:red'>skipped for now </mark>
+* Q) Why do we detect fewer significant genes when we don't account for type variables?
+  * Hows does accounting for/not blocking factors benefit?
+* A)
+
+> Without modeling the blocking factor, the variability in the data that is due to it has to be absorbed by the ε's (residual). This means that they are generally larger than in the model with the blocking factor (ε's larger in data w/o including type). The higher level of noise leads to higher uncertainty in the β-estimates. On the other hand, the model with the blocking factor has more parameters that need to be estimated. In statistical parlance, the fit has fewer “degrees of freedom”. Both of these effects are counteracting, and which of them prevails, and which of the modeling choices yields more or fewer significant results depends on the data.
+
+* Q) What is confounding?
+  * If don't account for blocking factor, does this lead to detection of more genes?
+* A)
+
+> Yes. Imagine the variables condition and type were not as nicely balanced as they are, but partially or fully confounded. In that case, differences in the data due to type could be attributed to condition if a model is fit that does not make it possible to absorb them in the type-effect. Scientifically, such an experiment (and analysis) can be quite an embarrassment.
+
+* Q) If a paired experiment (10 different cell lines w/ and w/o drug treatment)
+  * How should this be analyzed?
+  
+> If we just did a simple two-group comparison (treated versus untreated) many of the treatment effects would probably go under in the strong **cell line to cell line variation**. However, we can set up a paired analysis simply by **adding cell line identity as a blocking factor**. (Cell line is then really an R factor with 10 different levels, rather than just a 0 vs 1 indicator variable as with the variables that we looked at so far; R’s linear modeling facilities, and also DESeq2, have no problem dealing with that.)
+
+* Q) What can you do if you suspect "hidden" factors which affect data but not documented? (ex) undocumented covariates such as **batch effects**)
+* A) There are methods attempting to identify blocking factors wia unsupervised learning (read Leek and Storey (2007; Stegle et al. 2010))
 
 * **
 <p id="11"><b><font size="5">Further statistical concepts</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -1032,6 +1058,48 @@ results(pasilla, lfcThreshold = 0.5, altHypothesis = "greaterAbs")
 
 * **
 <p id="12"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
+
+#https://www.bioconductor.org/help/course-materials/2016/CSAMA/lab-3-rnaseq/rnaseq_gene_CSAMA2016.html#creating-a-dgelist-for-use-with-edger
+
+#### Excercise 8.1
+
+```{r}
+#make DGEList class
+pasillaEdge <- DGEList(counts=counts, sample = pasillaSampleAnno[mt,], group=pasillaSampleAnno$condition)
+class(pasillaEdge)
+```
+
+```{r}
+is(pasillaEdge, "SummariedExperiment") #not a summarizedexperiment class of bioconductor
+```
+
+```{r}
+# DESeq2() -> normalization (estimateSizeFactors), dispersion estimate (estimateDispersions), & nbiomWladTest (hypothesis test for differential abundance)
+
+#Equivalent to DESeq2() function in EdgeR is model.matrix() for groups + fit()
+design <- model.matrix(~pasillaEdge$samples$group)
+pasillaEdge1 <- calcNormFactors(pasillaEdge) # estimate size factor
+pasillaEdge1 <- estimateDisp(pasillaEdge, design) #estimate dispersion
+fit <- glmFit(pasillaEdge1, design=design, dispersion = pasillaEdge$common.dispersion) #note dispersion is set at NULL default
+lrt <- glmLRT(fit, coef=ncol(design))
+```
+
+```{r}
+#Compare w/ DESeq2 output
+pasilla$sizeFactor ; pasillaEdge1$samples$norm.factors #size factor est.
+```
+
+```{r}
+#Compare edgeR results vs DESeq2 results
+tt <- topTags(lrt, n=nrow(pasillaEdge1), p.value=0.1)
+tt10 <- topTags(lrt) # just the top 10 by default
+tt.all <- topTags(lrt, n=nrow(pasillaEdge1), sort.by="none")
+table(DESeq2=results(pasilla)$padj < 0.1, edgeR=tt.all$table$FDR <0.1)
+```
+
+
+#### Excercise 8.2
+* skipped b/c not sure how shiny works (this was mentioned in ch3 which we didn't go through)
 
 * **
 
