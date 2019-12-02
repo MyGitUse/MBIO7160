@@ -165,7 +165,7 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
     * Can use high-throughput seq to detect isoform structures of transcripts
 * Fragments characteristic for specific isoform -> can detect isoform specific abundances 
 * Current RNA-seq data -> short fragments of full-length isoforms = hard to assemble full length isoform structures/abundances
-  * Procedures have modest aim of making local statements (inclusion/exclusion of individual exons) = more rombust
+  * Procedures have modest aim of making local statements (inclusion/exclusion of individual exons) = more robust
 
 <button data-toggle="collapse" data-target="#e1">Abdul's Notes</button>
 <div id="e1" class="collapse">
@@ -217,6 +217,8 @@ Designed RNA-seq experiments are usually limited in in replicates used and hence
 
 <button data-toggle="collapse" data-target="#c1">condensed notes</button>
 <div id="c1" class="collapse">
+[link](https://github.com/hbctraining/DGE_workshop/blob/master/lessons/02_DGE_count_normalization.md)
+
 * n=total library size (total #fragemnts)
 * <u>normalization (AKA size/proportional factor)</u>
   * 1: (A-mean) geometric mean of row (gene1 (row) per samples (column)
@@ -253,7 +255,7 @@ https://www.annualreviews.org/doi/full/10.1146/annurev-biodatasci-072018-021255#
   * If we estimate s so that ratios -> slope of red line
     * Still conclude C is downregulated & other genes are unchanged
     * This estimate is more parsimonious & perferred
-      * Slope via rombust regression via DESEQ2
+      * Slope via robust regression via DESEQ2
 
 <center><img src="http://web.stanford.edu/class/bios221/book/figure/chap7-rnaseq-normalization-1.png"  width="250" height="250"></center>
 > Size factor estimation. The points correspond to hypothetical genes whose counts in two samples are indicated by their x- and y-coordinates. The lines indicate two different ways of size factor estimation explained in the text.
@@ -703,12 +705,12 @@ y_{j} = \sum_k x_{jk} \; \beta_k + \varepsilon_j.
       * If median is higher vs breakdown pt -> changing single# has no effect
         * if changing single# has effect -> effect limited to range of data points in the middle of the ranking (those adjacent to rank n/2)
         * To change median by high amount -> need to change half of the obs
-          * **Median is rombust -> breakdown point is 1/2**
+          * **Median is robust -> breakdown point is 1/2**
           * median of set of #'s y1,y2,... minimizes the sum
           
           \begin{equation}\sum_j|y_j-\beta_0|\end{equation}
 
-* To get a high degree of rombustness vs outliers, there choices other than sum of squares(eqn 8.6) used for minimization
+* To get a high degree of robustness vs outliers, there choices other than sum of squares(eqn 8.6) used for minimization
 
 \begin{align}
 R &= \sum_j |\varepsilon_j| & \text{Least absolute deviations} \tag{8.8} \\
@@ -779,7 +781,7 @@ ggplot(reshape2::melt(df, id.vars = "x"),
       * All outlier data points discarded (wj=0) & ordinary regression performed on points where wj=1
   * This uses straightforward linear algebra
   
-* All these approaches to outlier rombustness add a subjective component & **rely on sufficient replication**
+* All these approaches to outlier robustness add a subjective component & **rely on sufficient replication**
   * Subjectivness reflected via parameter choices
     * s in eqn 8.9
     * theta in eqn 8.10
@@ -805,7 +807,7 @@ ggplot(reshape2::melt(df, id.vars = "x"),
     * Gives weights to observations to find outliers (DESeq uses Cook's algorithm for each gene difference B, if cook's = 0 -> large distance AKA outlier discarded)
 </div>
     
-* Task: Search for packages implementing the above eqns for rombust regression methods <mark style='background-color:red'>skipped</mark>
+* Task: Search for packages implementing the above eqns for robust regression methods <mark style='background-color:red'>skipped</mark>
 
 * **
 <p id="9"><b><font size="5">Generalized linear models</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -818,12 +820,12 @@ ggplot(reshape2::melt(df, id.vars = "x"),
 * Can consider the data not to be on the scale obtained, but on a scale after transformation (ex) log transformation)
   * ex) linear model in eqn 8.5 may not be useful for modeling outcomes bound within an interval for indicating disease risk (ie) 0 to 1)
 * For linear models, values of y should cover the whole real axis
-  * If transforming the expression on the right w/ a sigmoid function (ex) f(y) = 1/(1+e<sup>-y</sub>) -> the range of the function is bound between 0 & 1 and more useful for the disease risk model above
+  * If transforming the expression on the right w/ a sigmoid function (ex) f(y) = 1/(1+e<sup>-y</sup>) -> the range of the function is bound between 0 & 1 and more useful for the disease risk model above
     * This function is the logistic function associated w/ logistic regression model 
 
 #### Other error distributions
 * Generalizing the maximization criterion (eqn 8.6)
-  * This criteria can be derived via specific probabilistic model (Maximium likelihood principle - seen i nCH2)
+  * This criteria can be derived via specific probabilistic model (Maximium likelihood principle - seen in CH2)
   * Consider the follwing probability model
     
 \begin{equation}
@@ -845,11 +847,11 @@ p(\varepsilon_j) = \frac{1}{\sqrt{2\pi}\sigma} \exp \frac{\varepsilon_j^2}{2\sig
 * Core concepts 
   * Left hand side of eqn 8.13 (product of probabilities of residuals) = function of the model parameters β1,β2,... & data y1, y2,... -> this is f(β,y)
     * Think of the model parameters β as fixed
-      * Then the collapsed function f(y) indicates the probability fo the data
-    * Think of the data given
+      * Then the collapsed function f(y) indicates the probability of the data
+    * Think of the data given (where β not fixed)
       * Then f(β) is a function of model parameters - indicates the likelihood
       * We use this to optimize criteria 8.6 (which changes criteria 8.13 also)
-        * β's obtained are called maximul-likelihood estimates 
+        * β's obtained are called maximum-likelihood estimates 
   * Can make a probabilistic model w/ this generalization
     * Use densities from other distributions (except normal eqn 8.12)
       * ex) count data - use a gamma-Poisson distribution
@@ -872,7 +874,7 @@ K_{ij} &\sim \text{GP}(\mu_{ij}, \alpha_i)  \tag{8.14} \\
   * Default dispersion is different for each gene i BUT same across all samples
     * Therefore, no index j
   * Eqn 8.15 states that mean made from sample-specific size factor (sj & qij)
-    * This is proportional to the ture expected concentration of fragments for gene i & sample j
+    * This is proportional to the true expected concentration of fragments for gene i & sample j
   * Value of qij -> given by linear model in 3rd line (link function log2)
   * Design matrix (xjk) same for all genes (therefore, does not depend on i)
     * rows j = smaples
@@ -941,7 +943,7 @@ ggplot(tibble(pOne = res$pvalue,
 > Comparison of p-values from the models with a single factor (condition) and with two factors (type + condition). The axes correspond to (−log10p)<sup>1/6</sup>, an arbitrarily chosen monotonically decreasing transformation that compresses the dynamic range of the p-values for the purpose of visualization. We can see a trend for the joint distribution to lie above the bisector, indicating that the small p-values in the two-factor analysis are generally smaller than those in the one-factor analysis.
 
 * The above figure shows p-values in 2-factor analysis similar to 1-factor analysis
-  * 2-facotr analysis generally smaller
+  * 2-factor analysis generally smaller
     * leads to a small increase in power (ex) count #genes passing a certain significance threshold in each case)
     
 ```{r}
@@ -975,7 +977,7 @@ addmargins( compareRes )
 > If we just did a simple two-group comparison (treated versus untreated) many of the treatment effects would probably go under in the strong **cell line to cell line variation**. However, we can set up a paired analysis simply by **adding cell line identity as a blocking factor**. (Cell line is then really an R factor with 10 different levels, rather than just a 0 vs 1 indicator variable as with the variables that we looked at so far; R’s linear modeling facilities, and also DESeq2, have no problem dealing with that.)
 
 * Q) What can you do if you suspect "hidden" factors which affect data but not documented? (ex) undocumented covariates such as **batch effects**)
-* A) There are methods attempting to identify blocking factors wia unsupervised learning (read Leek and Storey (2007; Stegle et al. 2010))
+* A) There are methods attempting to identify blocking factors via unsupervised learning (read Leek and Storey (2007; Stegle et al. 2010))
 
 * **
 <p id="11"><b><font size="5">Further statistical concepts</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -987,7 +989,7 @@ addmargins( compareRes )
 * DESeq uses emperical Bayes approach for estimation of dispersion parameters (a's in eqn 8.16)
   * can also estimate log fold changes (B's)
 
-* Priors in this case is from distributions of maximum-likelihood estimates (MLEs) across all gnees
+* Priors in this case is from distributions of maximum-likelihood estimates (MLEs) across all genes
   * Both of these distributions (a's and B's) are unimodal
     * B's -> peak around 0
     * a's -> peak around particular value (typical dispersion)
@@ -1002,7 +1004,7 @@ addmargins( compareRes )
 <img src="http://web.stanford.edu/class/bios221/book/figure/chap7-rnaseq-posterior-1.png"  width="250" height="250"> 
 <img src="http://web.stanford.edu/class/bios221/book/figure/chap7-rnaseq-posterior-2.png"  width="250" height="250">
 
-> Figure 8.10: Shrinkage estimation of logarithmic fold change estimates by use of an empirical prior in <strong><a href="https://bioconductor.org/packages/DESeq2/">DESeq2</a></strong>. Two genes with similar mean count and MLE logarithmic fold change are highlighted in green and blue. The normalized counts for these genes (upper panel) reveal low dispersion for the gene in blue and high dispersion for the gene in green. In the lower panel, the density plots are shown of the normalized likelihoods (solid lines) and of the posteriors (dashed lines) for the green and blue gene. In addition, the solid black line shows the prior estimated from the MLEs of all genes. Due to the higher dispersion of the green gene, its likelihood is wider and less sharp (indicating less information), and the prior has more influence on its posterior than in the case of the blue gene.
+> Figure 8.10: Shrinkage estimation of logarithmic fold change estimates by use of an empirical prior in <strong><a href="https://bioconductor.org/packages/DESeq2/">DESeq2</a></strong>. Two genes with similar mean count and MLE logarithmic fold change are highlighted in green and blue. The normalized counts for these genes (left panel) reveal low dispersion for the gene in blue and high dispersion for the gene in green. In the right panel, the density plots are shown of the normalized likelihoods (solid lines) and of the posteriors (dashed lines) for the green and blue gene. In addition, the solid black line shows the prior estimated from the MLEs of all genes. Due to the higher dispersion of the green gene, its likelihood is wider and less sharp (indicating less information - wider variance/lower mean), and the prior has more influence on its posterior than in the case of the blue gene.
   
 #### Count data transformations 
 * Testing differential exprssion on raw counts -> use discrete distirbutions
@@ -1119,11 +1121,11 @@ boxplot(log10(assays(pasillaTwoFactor)[["cooks"]]), range=0, las=2)
   * How can computed Cook's distances be accessed?
 
 * w/ many degrees of freedom (more samples than #of parameters to be estimated), may not want to remove entire genes from analysis b/c their data have a single count outlier
-  * Alternative strategy is to replace #outlier counts w/ trimemd mean over all samples & adjust by size factor for the sample
+  * Alternative strategy is to replace #outlier counts w/ trimmed mean over all samples & adjust by size factor for the sample
     * This is a conservative approach -> won't lead to false +ves (replaces outlier values w/ value predicted by null hypothesis)
     
 #### Tests of log2 fold change above/below threshold
-* How add requirement to detect effects w/ strong size (but small) vs statistically significant ones?
+* How to add requirement for detecting effects w/ strong size (but small) vs statistically significant ones?
 * 2 arguements to `results()` allow for threshold-based Wald tests
   * lfcTreshold -> takes numeric non-ve threshold value
   * altHypothesis -> specifies test
@@ -1154,12 +1156,24 @@ myMA("less",         -1   )
 results(pasilla, lfcThreshold = 0.5, altHypothesis = "greaterAbs")
 ```
 
+<button data-toggle="collapse" data-target="#k1">condensed notes</button>
+<div id="k1" class="collapse">
+* Shrinkage is based upon Bayesian statistics
+  * Prior knowledge of expected provided = decrease false +ve rates
+  * increase #sames = decrease shrinkage
+  * genes w/ low dispersion is shrunken towards curve (dispersion vs mean normalized counts) = more accurate
+  
+* Wald's hypothesis test
+  * set up H0 for each gene (= no differential gene expression accross 2 groups (LFC=0))
+  * Use statistical test to determine if H0 true
+    * Wald's is used to compare against 2 groups (small p-value=rej H0 -> evidence for differential expression (DE))
+
+</div>
 
 * **
 <p id="12"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
 
 #https://www.bioconductor.org/help/course-materials/2016/CSAMA/lab-3-rnaseq/rnaseq_gene_CSAMA2016.html#creating-a-dgelist-for-use-with-edger
-# WORK IN PROGRESS - STILL FIGURING THINGS OUT
 
 #### Excercise 8.1
 

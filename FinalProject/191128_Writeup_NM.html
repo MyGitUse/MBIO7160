@@ -417,9 +417,9 @@ knitr::opts_chunk$set(echo = TRUE)</code></pre>
 </p>
 <hr />
 <p><u><strong>Obtaining Data Using Galaxy</strong></u><br />
-  From the article by <a href="https://www.nature.com/articles/s41467-018-06103-6/">Zuo et al. (2019)</a>, the associated fungal ITS2 MiSeq dataset is found on <a href="https://www.ncbi.nlm.nih.gov/sra?linkname=bioproject_sra_all&amp;from_uid=419104">NCBI BioProject (PRJNA419104)</a>. A file containing all the sequence accessions is exported and uploaded onto an online collection of bioinformatic tools, <a href="https://usegalaxy.org/">Galaxy tools</a>. On Galaxy, the sequence files associated with their linking accessions is downloaded using the “Faster Download and Extract Reads in FASTQ format from NCBI SRA” tool. The “List of SRA accession, one per line” parameter for this tool allows for the extraction of paired-end sequence collection from BioProject. The resulting file must be unzipped and the file type must be changed for downstream analysis. Using Bash, I <a href="#ER">renamed</a> the “.fastqsanger” extension to &quot;_L001_R#_001.fastq&quot; for the next step.</p>
+  From the article by <a href="https://www.nature.com/articles/s41467-018-06103-6/">Zuo et al. (2019)</a>, the associated fungal ITS2 MiSeq dataset is found on <a href="https://www.ncbi.nlm.nih.gov/sra?linkname=bioproject_sra_all&amp;from_uid=419104">NCBI BioProject (PRJNA419104)</a>. A file containing all the sequence accessions is exported and uploaded onto an online collection of bioinformatic tools, <a href="https://usegalaxy.org/">Galaxy tools</a>. On Galaxy, the sequence files associated with their linking accessions is downloaded using the “Faster Download and Extract Reads in FASTQ format from NCBI SRA” tool. The “List of SRA accession, one per line” parameter for this tool allows for the extraction of paired-end sequence collection from BioProject. The resulting file must be unzipped and the file type must be changed for downstream analysis. Using Bash, I <a href="#ER">renamed</a> the “.fastqsanger” extension to &quot;_L001_R#_001.fastq&quot; for the next step.</p>
 <p><u><strong>FASTQ Header Processing</strong></u><br />
-  FASTQ files extracted by Galaxy contains improper headers for downstream operational taxonomic units (OTUs) analysis (i.e. <span class="citation">@1/1</span>). I created two Bash scripts, <a href="#FH1">HeaderRenameR1.sh</a> and <a href="#FH2">HeaderRenameR2.sh</a>, to rename foward reads (R1) and reverse reads (R2) into the format “#Sample Accession_L001/#”. Breifly, each script searches for forward (R1) or reverse (R2) FASTQ files, and pastes the associated accession ID as the header. The number in front of the accession header prevents overlaping names, while the number at the end of the header distinguishes forward reads (1) from reverse reads (2) for paired-end files. To run the scripts, place them in the same folder as the FASTQ files and execute <code>./headerrenameR#.sh outputfolder/</code></p>
+  FASTQ files extracted by Galaxy contains improper headers for downstream operational taxonomic units (OTUs) analysis (i.e. <span class="citation">@1/1</span>). I created two Bash scripts, <a href="#FH1">HeaderRenameR1.sh</a> and <a href="#FH2">HeaderRenameR2.sh</a>, to rename foward reads (R1) and reverse reads (R2) into the format “#Sample Accession_L001/#”. Breifly, each script searches for forward (R1) or reverse (R2) FASTQ files, and pastes the associated accession ID as the header. The number in front of the accession header prevents overlaping names, while the number at the end of the header distinguishes forward reads (1) from reverse reads (2) for paired-end files. To run the scripts, place them in the same folder as the FASTQ files and execute <code>./headerrenameR#.sh outputfolder/</code></p>
 <p><u><strong>LotuS Pipeline OTU Analysis</strong></u><br />
   <a href="https://microbiomejournal.biomedcentral.com/articles/10.1186/2049-2618-2-30">Less operational taxonomic units scripts (LotuS)</a> is a metataxonomic tool which allows for fungal ITS2 amplicon based taxonomic clustering and classification (Hildebrand et al., 2014). This tool needs to be installed on a Bash based system, and there is information online <a href="http://psbweb05.psb.ugent.be/lotus/documentation.html">aiding installation</a>. Note that <a href="http://www.drive5.com/usearch/download.html">USEARCH</a> must be downloaded separately for this tool to work. To use this tool, a mapping file is first generated using the <a href="#Lotus"><code>./autoMap.pl</code></a> command which pairs the forward and reverse FASTQ files for clustering. The following <a href="#Lotus"><code>./lotus.pl</code></a> command is used to cluster the sequences into OTUs based upon a percent similarity. I set the parameters for identification of fungal organisms using the fungal ITS2 region mapped to the UNITE reference database, and sequence processing is done using their MiSeq settings with the requirement of a minimum 100 bp overlap.</p>
 <ul>
@@ -435,14 +435,14 @@ knitr::opts_chunk$set(echo = TRUE)</code></pre>
 <hr />
 <div id="ER">
 <p><u><strong>File Extension Rename</strong></u></p>
-<pre class="bash"><code>#shopt -s globstar
-#rename .fastqsanger _L001_R1_001.fastq collection\ 4\ \(forward\)/**
-#rename .fastqsanger _L001_R2_001.fastq collection\ 4\ \(reverse\)/*</code></pre>
+<pre class="bash"><code>shopt -s globstar
+rename .fastqsanger _L001_R1_001.fastq collection\ 4\ \(forward\)/**
+rename .fastqsanger _L001_R2_001.fastq collection\ 4\ \(reverse\)/*</code></pre>
 </div>
 <div id="ER">
 <p><u><strong>LotuS Commands</strong></u></p>
-<pre class="bash"><code>#./autoMap.pl FASTQfolder/ ProjectMapping.txt 2 #where 2 represents paired-end reads
-#./lotus.pl -i FASTQfolder/ -m MappingFile.txt -o OutputFile -s sdm_miSeq.txt -p miSeq -highmem 1 -refDB ./DB/ITSxUSEARCH.fasta -tax4refDB ./DB/ITSxUSEARCH.tax -itsextraction 1 -readOverlap 100 -keepUnclassified 1 -tax_group fungi </code></pre>
+<pre class="bash"><code>./autoMap.pl FASTQfolder/ ProjectMapping.txt 2 #where 2 represents paired-end reads
+./lotus.pl -i FASTQfolder/ -m MappingFile.txt -o OutputFile -s sdm_miSeq.txt -p miSeq -highmem 1 -refDB ./DB/ITSxUSEARCH.fasta -tax4refDB ./DB/ITSxUSEARCH.tax -itsextraction 1 -readOverlap 100 -keepUnclassified 1 -tax_group fungi </code></pre>
 </div>
 <div id="FH1">
 <p><u><strong>HeaderRenameR1.sh</strong></u></p>
@@ -451,13 +451,10 @@ knitr::opts_chunk$set(echo = TRUE)</code></pre>
 fastqdir=$1
 
 #this renames headers of R1 reads
-for w in `ls $fastqdir/*R1_001.fastq | xargs -n 1 basename | sed 's/_R1_001.fastq//'` #prints out only the SRR######
+for w in `ls $fastqdir/*R1_001.fastq | xargs -n 1 basename | sed &#39;s/_R1_001.fastq//&#39;` #prints out only the SRR######
 do 
-    cat &quot;$fastqdir/$w&quot;_R1_001.fastq | awk -v names=&quot;$w/1&quot; '{print (NR%4 == 1) ? &quot;@&quot;++i names : $0}' &gt; &quot;$fastqdir/$w&quot;_R1_001.fastq.renamed 
+    cat &quot;$fastqdir/$w&quot;_R1_001.fastq | awk -v names=&quot;$w/1&quot; &#39;{print (NR%4 == 1) ? &quot;@&quot;++i names : $0}&#39; &gt; &quot;$fastqdir/$w&quot;_R1_001.fastq.renamed 
 done</code></pre>
-<pre><code>## ls: cannot access '/*R1_001.fastq': No such file or directory
-## basename: missing operand
-## Try 'basename --help' for more information.</code></pre>
 </div>
 <div id="FH2">
 <p><u><strong>HeaderRenameR2.sh</strong></u></p>
@@ -466,13 +463,10 @@ done</code></pre>
 fastqdir=$1
 
 #this renames headers of R2 reads
-for w in `ls $fastqdir/*R2_001.fastq | xargs -n 1 basename | sed 's/_R2_001.fastq//'` #prints out only the SRR######
+for w in `ls $fastqdir/*R2_001.fastq | xargs -n 1 basename | sed &#39;s/_R2_001.fastq//&#39;` #prints out only the SRR######
 do 
-    cat &quot;$fastqdir/$w&quot;_R2_001.fastq | awk -v names=&quot;$w/2&quot; '{print (NR%4 == 1) ? &quot;@&quot;++i names : $0}' &gt; &quot;$fastqdir/$w&quot;_R2_001.fastq.renamed 
+    cat &quot;$fastqdir/$w&quot;_R2_001.fastq | awk -v names=&quot;$w/2&quot; &#39;{print (NR%4 == 1) ? &quot;@&quot;++i names : $0}&#39; &gt; &quot;$fastqdir/$w&quot;_R2_001.fastq.renamed 
 done</code></pre>
-<pre><code>## ls: cannot access '/*R2_001.fastq': No such file or directory
-## basename: missing operand
-## Try 'basename --help' for more information.</code></pre>
 </div>
 <hr />
 <p id="x">

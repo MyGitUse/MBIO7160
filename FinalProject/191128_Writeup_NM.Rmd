@@ -79,24 +79,24 @@ a
 
 <div id="ER">
 <u>**File Extension Rename**</u>
-```{bash}
-#shopt -s globstar
-#rename .fastqsanger _L001_R1_001.fastq collection\ 4\ \(forward\)/**
-#rename .fastqsanger _L001_R2_001.fastq collection\ 4\ \(reverse\)/*
+```{bash, eval=FALSE}
+shopt -s globstar
+rename .fastqsanger _L001_R1_001.fastq collection\ 4\ \(forward\)/**
+rename .fastqsanger _L001_R2_001.fastq collection\ 4\ \(reverse\)/*
 ```
 </div>
 
 <div id="ER">
 <u>**LotuS Commands**</u>
-```{bash}
-#./autoMap.pl FASTQfolder/ ProjectMapping.txt 2 #where 2 represents paired-end reads
-#./lotus.pl -i FASTQfolder/ -m MappingFile.txt -o OutputFile -s sdm_miSeq.txt -p miSeq -highmem 1 -refDB ./DB/ITSxUSEARCH.fasta -tax4refDB ./DB/ITSxUSEARCH.tax -itsextraction 1 -readOverlap 100 -keepUnclassified 1 -tax_group fungi 
+```{bash, eval=FALSE}
+./autoMap.pl FASTQfolder/ ProjectMapping.txt 2 #where 2 represents paired-end reads
+./lotus.pl -i FASTQfolder/ -m MappingFile.txt -o OutputFile -s sdm_miSeq.txt -p miSeq -highmem 1 -refDB ./DB/ITSxUSEARCH.fasta -tax4refDB ./DB/ITSxUSEARCH.tax -itsextraction 1 -readOverlap 100 -keepUnclassified 1 -tax_group fungi 
 ```
 </div>
 
 <div id="FH1">
 <u>**HeaderRenameR1.sh**</u>
-```{bash}
+```{bash, eval=FALSE}
 #!/bin/bash
 
 fastqdir=$1
@@ -111,7 +111,7 @@ done
 
 <div id="FH2">
 <u>**HeaderRenameR2.sh**</u>
-```{bash}
+```{bash, eval=FALSE}
 #!/bin/bash
 
 fastqdir=$1
