@@ -14,6 +14,7 @@ library(dplyr)
 library(pheatmap)
 library(vsn) #bioconductor
 library(edgeR) #bioconductor
+library(statmod)
 ```
 
 <body>
@@ -57,6 +58,8 @@ library(edgeR) #bioconductor
     * Sequence & count a **staticical sample**
       * Sample size depends on complexity of sequence pool assayed
       * Hope that sample size is enough to represent all trends + patterns
+      
+<img src="https://ars.els-cdn.com/content/image/1-s2.0-S007668791830288X-f01-02-9780128159934.jpg?_"  width="350" height="500">
 
 * **
 
@@ -107,6 +110,9 @@ library(edgeR) #bioconductor
 <p id="4"><b><font size="5">Count data</b></font><a href="#0"><sup>Return</sup></a></p>
 
 * Load data from pasilla package
+
+> We bigin with gene count data from an experiment on effect of RNAi knockdown of Pasilla, the Drosophila melanogaster ortholog of mammalian NOVA1 and NOVA2, on the transcriptome.
+
 ```{r}
 fn <- system.file("extdata", "pasilla_gene_counts.tsv", package="pasilla",mustWork=T) # system.file() locates file in pasilla package
 
@@ -151,6 +157,7 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
     * Dispersion parameters = distributions parameterized in various ways
       * parameters = measure of location & dispersion
       * ex) mean is a measure of location & variance/stdev is a measure of dispersion
+      
 
 #### RNA-seq: what about gene structures, splicing, isoforms?
 * Euk genes are complex -> multi-exon & mRNAs from concatenated exons via splicing
@@ -159,6 +166,20 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
 * Fragments characteristic for specific isoform -> can detect isoform specific abundances 
 * Current RNA-seq data -> short fragments of full-length isoforms = hard to assemble full length isoform structures/abundances
   * Procedures have modest aim of making local statements (inclusion/exclusion of individual exons) = more rombust
+
+<button data-toggle="collapse" data-target="#e1">Abdul's Notes</button>
+<div id="e1" class="collapse">
+-Heteroskedasticity
+
+-Non-symmetric distribution
+
+-Systematic sampling biases
+
+-Sources of stochastic experimental variation
+
+Designed RNA-seq experiments are usually limited in in replicates used and hence lack enough power. Hence distributional assumptions that let us compute the probabilities of rare events in the tails of the distribution are made.
+</div>
+
 
 * **
 <p id="5"><b><font size="5">Modeling count data</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -206,7 +227,14 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
 
 * AKA normalization controls for seq depth difference in gene abundance & RNA difference in gene abundance
 * Comparing groups with the same genes -> don't need to account for length difference
+
+
+<img src="Dispersion.png">
+
+> Dispersion -> gamma-Poisson b/c lambda = variance, also lambda also calculated from np (n=total read count * proportion of that gene) 
+
 </div> 
+
     
 #### Normalization
 * Systematic biases affect data generation - should account for
@@ -324,7 +352,7 @@ with(pasillaSampleAnno, table(condition, type))
   * <mark style='background-color:blue'> Ask class about these classes</mark>
     * SummarizedExperiment class used in many packages so learning it is multipurpose
     
-    > Another advantage is that classes can contain validity methods, which make sure that the data always fulfill certain expectations, for instance, that the counts are positive integers, or that the columns of the counts matrix align with the rows of the sample annotation dataframe.
+> Another advantage is that classes can contain validity methods, which make sure that the data always fulfill certain expectations, for instance, that the counts are positive integers, or that the columns of the counts matrix align with the rows of the sample annotation dataframe.
     
 * Use constructor function `DESeqDataSetFromMatrix()` -> creates a DESeqDataSet class from count data matrix counts & sample annotation dataframe pasillaSampleAnno (metadata)
 
@@ -385,6 +413,12 @@ res[order(res$padj),] %>% head #head 6 lines of results
   * MA plot
   * Oridination plot
   * Heatmap can be instructive
+
+* The dispersion can be observed as
+```{r}
+plotDispEsts(pasilla)
+```
+
 
 * <mark style='background-color:lightgreen'>These are essential data quality assesment measures</mark>
   * Advice on quality assessment & control in CH13
@@ -486,7 +520,22 @@ pheatmap( assay(pas_rlog)[select, ],
 > For the normalization, although not for the dispersion estimation, one can slightly relax this assumption: it is still valid if many genes are changing, but in a way that is balanced between up- and downward directions
 
 * Task: Run DESeq2 workflow w/ size factors & dispersion parameters estimated only from a predefined subset of genes
-  * <mark style='background-color:red'>skipped</mark>
+```{r}
+
+pasilla1.1 = DESeqDataSetFromMatrix(
+  countData = counts,
+  colData   = pasillaSampleAnno[mt, ],
+  design    = ~ condition)
+class(pasilla1.1)
+p= estimateSizeFactors(pasilla1.1, controlGenes= (1:130))
+p1=estimateDispersions(p)
+p1=nbinomWaldTest(p1)
+res1=results(p1)
+nrow(res1)
+res[order(res1$padj), ] %>% head
+
+plotMA(res1)
+```
   
 #### Point-like null hypothesis
 * Default of `DESeq()` tests vs null hypothesis (each gene has same abundance across conditions)
@@ -644,7 +693,7 @@ y_{j} = \sum_k x_{jk} \; \beta_k + \varepsilon_j.
         * β12 variability unaccounted for
           * unaccounted variability = noise/systematic variability
 
-#### Rombustness
+#### Robustness
 * **Sum of eqn 8.6 is sensitive to data outliers (because eqn 8.5 is linear system of eqn?)**
   * One measurement (yj) w/ outlier value changes β estimate to be far from values measured by replicates
     * **Methods used on least sum of squares have low breakdown pt**
@@ -1049,6 +1098,22 @@ gridExtra::grid.arrange(
     * Default cutoff depends on sample size & #parameters to be estimated 
       * DESeq2 uses 99% quantile of F(p,m-p) distribution (p=#parameters including intercept & m=#samples)
       
+<button data-toggle="collapse" data-target="#f1">Abdul's Notes</button>
+<div id="f1" class="collapse">
+In Deseq2;
+
+-The results function automatically flags genes which contain a Cook’s distance above a cutoff for samples which have 3 or more replicates. The p values and adjusted p values for these genes are set to NA.
+
+- When there are 7 or more replicates for a given sample, the DESeq function will automatically replace counts with large Cook’s distance with the trimmed mean over all samples, scaled up by the size factor or normalization factor for that sample. 
+
+- This outlier replacement only occurs when there are 7 or more replicates, and can be turned off with  _DESeq(dds, minReplicatesForReplace=Inf)_
+
+```{r}
+par(mar=c(8,5,2,2))
+boxplot(log10(assays(pasillaTwoFactor)[["cooks"]]), range=0, las=2)
+```
+</div>
+      
 * Q) Check documentation to see how default cutoff can be changed & how outlier removal function can be distabled
   * How can computed Cook's distances be accessed?
 
@@ -1161,6 +1226,46 @@ DESeq2::plotMA(res, ylim=c(-2,2))
 
 plotMD(lrt)
 ```
+
+<button data-toggle="collapse" data-target="#g1">Abdul's Solution</button>
+<div id="g1" class="collapse">
+
+
+```{r}
+y <- calcNormFactors(pasillaEdge1, method="RLE")
+plotMDS(pasillaEdge1)
+y1 <- estimateDisp(y, design, robust=TRUE)
+y1$common.dispersion
+plotBCV(y1)
+
+#Generalized Linear Models with Quasi-likelihood Tests
+
+glmfit <- glmQLFit(y1, design, robust=TRUE)
+plotQLDisp(glmfit)
+results <- glmQLFTest(glmfit)
+topTags(results)
+is.de <- decideTests(results, p.value=0.05)
+summary(is.de)
+
+plotMD(results)
+abline(h=c(-1, 1), col="blue")
+
+
+##the glmLRT approach##
+#Conduct likelihood ratio tests for 1 vs 2 and show the top genes:
+#First fit genewise glms:
+fit1 <- glmFit(y1, design)
+lrt <- glmLRT(fit1)
+topTags(lrt)
+plotMD(lrt)
+abline(h=c(-1, 1), col="blue")
+#The total number of differentially expressed genes at 5% FDR is given by:
+summary(decideTests(lrt))
+```
+
+
+</div>
+
 
 #### Excercise 8.2
 * skipped b/c not sure how shiny works (this was mentioned in ch3 which we didn't go through)
