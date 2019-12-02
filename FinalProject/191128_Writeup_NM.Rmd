@@ -1,0 +1,136 @@
+---
+title: "Project Writeup"
+output: html_document
+---
+
+```{r libraries, message=F, warning=F}
+library(phyloseq)
+library(tidyverse)
+library(tibble)
+library(dplyr)
+library(cowplot)
+library(grid)
+library(readxl)
+library(dplyr)
+library(vegan)
+library(ggrepel)
+library(PCAtools)
+library(pca3d)
+library(factoextra)
+library(vegan)
+library(MASS)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+<body>
+      <font face = "Times New Roman">
+  
+<p id="0"><u><font size="5"><b>Table of contents</b></font></u></p>  
+<a href="#1">[1]</a> Concept    
+<a href="#2">[2]</a> Background of Study & Dataset      
+<a href="#3">[3]</a> Notes on Statistical Methods Used  
+<a href="#4">[4]</a> Methodology  
+<a href="#5">[5]</a> Codes Section    
+<a href="#x">[X]</a> References
+
+* **
+<p id="1"><b><font size="5">Concept</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
+
+a
+
+* **
+<p id="2"><b><font size="5">Background of Study & Dataset</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
+
+a
+
+* **
+<p id="3"><b><font size="5">Notes on Statistical Methods Used</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
+
+a
+
+* **
+<p id="4"><b><font size="5">Methodology</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
+
+<u>**Obtaining Data Using Galaxy**</u>  
+&emsp; From the article by [Zuo et al. (2019)](https://www.nature.com/articles/s41467-018-06103-6/), the associated fungal ITS2 MiSeq dataset is found on [NCBI BioProject (PRJNA419104)](https://www.ncbi.nlm.nih.gov/sra?linkname=bioproject_sra_all&from_uid=419104). A file containing all the sequence accessions is exported and uploaded onto an online collection of bioinformatic tools, [Galaxy tools](https://usegalaxy.org/). On Galaxy, the sequence files associated with their linking accessions is downloaded using the "Faster Download and Extract Reads in FASTQ format from NCBI SRA" tool. The "List of SRA accession, one per line" parameter for this tool allows for the extraction of paired-end sequence collection from BioProject. The resulting file must be unzipped and the file type must be changed for downstream analysis. Using Bash, I <a href="#ER">renamed</a> the ".fastqsanger" extension to "_L001_R#_001.fastq" for the next step. 
+
+<u>**FASTQ Header Processing**</u>  
+&emsp; FASTQ files extracted by Galaxy contains improper headers for downstream operational taxonomic units (OTUs) analysis (i.e. @1/1). I created two Bash scripts, <a href="#FH1">HeaderRenameR1.sh</a> and <a href="#FH2">HeaderRenameR2.sh</a>, to rename foward reads (R1) and reverse reads (R2) into the format "#Sample Accession_L001/#". Breifly, each script searches for forward (R1) or reverse (R2) FASTQ files, and pastes the associated accession ID as the header. The number in front of the accession header prevents overlaping names, while the number at the end of the header distinguishes forward reads (1) from reverse reads (2) for paired-end files. To run the scripts, place them in the same folder as the FASTQ files and execute `./headerrenameR#.sh outputfolder/`
+
+<u>**LotuS Pipeline OTU Analysis**</u>  
+&emsp; [Less operational taxonomic units scripts (LotuS)](https://microbiomejournal.biomedcentral.com/articles/10.1186/2049-2618-2-30) is a metataxonomic tool which allows for fungal ITS2 amplicon based taxonomic clustering and classification (Hildebrand et al., 2014). This tool needs to be installed on a Bash based system, and there is information online [aiding installation](http://psbweb05.psb.ugent.be/lotus/documentation.html). Note that [USEARCH](http://www.drive5.com/usearch/download.html) must be downloaded separately for this tool to work. To use this tool, a mapping file is first generated using the <a href="#Lotus">`./autoMap.pl`</a> command which pairs the forward and reverse FASTQ files for clustering. The following <a href="#Lotus">`./lotus.pl`</a> command is used to cluster the sequences into OTUs based upon a percent similarity. I set the parameters for identification of fungal organisms using the fungal ITS2 region mapped to the UNITE reference database, and sequence processing is done using their MiSeq settings with the requirement of a minimum 100 bp overlap.
+
+
+
+
+* Metadata analysis
+* Data wrangling
+* Ordination methodology
+* check with other packages
+
+* **
+<p id="5"><b><font size="5">Codes</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
+
+<div id="ER">
+<u>**File Extension Rename**</u>
+```{bash}
+#shopt -s globstar
+#rename .fastqsanger _L001_R1_001.fastq collection\ 4\ \(forward\)/**
+#rename .fastqsanger _L001_R2_001.fastq collection\ 4\ \(reverse\)/*
+```
+</div>
+
+<div id="ER">
+<u>**LotuS Commands**</u>
+```{bash}
+#./autoMap.pl FASTQfolder/ ProjectMapping.txt 2 #where 2 represents paired-end reads
+#./lotus.pl -i FASTQfolder/ -m MappingFile.txt -o OutputFile -s sdm_miSeq.txt -p miSeq -highmem 1 -refDB ./DB/ITSxUSEARCH.fasta -tax4refDB ./DB/ITSxUSEARCH.tax -itsextraction 1 -readOverlap 100 -keepUnclassified 1 -tax_group fungi 
+```
+</div>
+
+<div id="FH1">
+<u>**HeaderRenameR1.sh**</u>
+```{bash}
+#!/bin/bash
+
+fastqdir=$1
+
+#this renames headers of R1 reads
+for w in `ls $fastqdir/*R1_001.fastq | xargs -n 1 basename | sed 's/_R1_001.fastq//'` #prints out only the SRR######
+do 
+    cat "$fastqdir/$w"_R1_001.fastq | awk -v names="$w/1" '{print (NR%4 == 1) ? "@"++i names : $0}' > "$fastqdir/$w"_R1_001.fastq.renamed 
+done
+```
+</div>
+
+<div id="FH2">
+<u>**HeaderRenameR2.sh**</u>
+```{bash}
+#!/bin/bash
+
+fastqdir=$1
+
+#this renames headers of R2 reads
+for w in `ls $fastqdir/*R2_001.fastq | xargs -n 1 basename | sed 's/_R2_001.fastq//'` #prints out only the SRR######
+do 
+    cat "$fastqdir/$w"_R2_001.fastq | awk -v names="$w/2" '{print (NR%4 == 1) ? "@"++i names : $0}' > "$fastqdir/$w"_R2_001.fastq.renamed 
+done
+```
+</div>
+
+
+
+* **
+<p id="x"><b><font size="5">References</b></font><a href="#0"><sup>Return</sup></a></p>
+* **
+
+Gut fungal dysbiosis correlates with reduced efficacy of fecal microbiota transplantation in Clostridium difficile infection
+LotuS: an efficient and user-friendly OTU processing pipeline
+
+</body>

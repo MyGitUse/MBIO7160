@@ -233,6 +233,7 @@ Designed RNA-seq experiments are usually limited in in replicates used and hence
 
 > Dispersion -> gamma-Poisson b/c lambda = variance, also lambda also calculated from np (n=total read count * proportion of that gene) 
 
+https://www.annualreviews.org/doi/full/10.1146/annurev-biodatasci-072018-021255#_i44
 </div> 
 
     
