@@ -193,8 +193,20 @@ counts[2000+(0:3),] #prints data from beginning + random point in middle
   * probability of sampling read for ith gene depends on #times same genes/other genes already sampled
   * Dependencies are negligibly small so can ignore
     * B/c n much larger than r -> #genes large and each individual ni is small vs summed total (n)
-    
+
+<button data-toggle="collapse" data-target="#c1">condensed notes</button>
+<div id="c1" class="collapse">
 * n=total library size (total #fragemnts)
+* <u>normalization (AKA size/proportional factor)</u>
+  * 1: (A-mean) geometric mean of row (gene1 (row) per samples (column)
+  * 2: (B-ratio) divide each fragment count by gene (row) geometric mean - ASSUMES GENES NOT DEFERENTIALLY EXPRESSED (therefore, similar ratio outcome) - accounts for difference in sequencing depth & RNA abundance per sample
+  * 3: (C-size factor) calculate size factor -> this is the median value for the B-ratio per sample (column)
+    * size factor of 1 = large variation between samples (outliers presence)
+  * 4: (D-scale) Use size factor to normalize gene counts (rows) by dividing
+
+* AKA normalization controls for seq depth difference in gene abundance & RNA difference in gene abundance
+* Comparing groups with the same genes -> don't need to account for length difference
+</div> 
     
 #### Normalization
 * Systematic biases affect data generation - should account for
@@ -320,7 +332,7 @@ with(pasillaSampleAnno, table(condition, type))
 
 ```{r}
 mt = match(colnames(counts), sub("fb$", "", pasillaSampleAnno$file))
-stopifnot(!any(is.na(mt)))
+stopifnot(!any(is.na(mt))) #ordering putting untreated first for easier downstream analysis
 
 pasilla = DESeqDataSetFromMatrix(
   countData = counts,
@@ -403,7 +415,7 @@ ggplot(as(res, "data.frame"), aes(x = pvalue)) +
 * Produce MA plot using `plotMA()` in DESeq2 package
 
 ```{r}
-plotMA(pasilla, ylim=c(-2,2))
+DESeq2::plotMA(pasilla, ylim=c(-2,2))
 ```
 > fold change versus mean of size-factor normalized counts. Logarithmic scaling is used for both axes. By default, points are colored red if the adjusted p-value is less than 0.1. Points which fall out of the 
 y-axis range are plotted as triangles.
@@ -723,6 +735,26 @@ ggplot(reshape2::melt(df, id.vars = "x"),
     * theta in eqn 8.10
     * weights in eqn 8.10
     
+    
+<button data-toggle="collapse" data-target="#c2">condensed notes</button>
+<div id="c2" class="collapse">
+* R = residuals (outliers), want to minimize between replicates
+* Methods
+  * 1: Minimize sum of squared residuals (least sum of squares fitting)
+    * problem = sensitive to outliers because "linear model"
+    * Low breakdown point (breakdown point is 1/2 of median) so need to increase #obs to increase breakdown point
+  * 2: Least absolute deviation (median generalization)
+    * problem = harder to minimize residuals vs above squared residuals
+  * 3: M-estimate
+    * Requires knowledge of data from literature for s value(outlier value cutoff)
+  * 4: LTS/LQS
+    * Generalizes least sum of squares (eqn 1)
+    * Uses quantiles (LQS -> sum of least quantiles squares)
+    * LTS is sum of squared residuals but only for the smallest residuals (0<= theta <=1)
+  * 5: General weighted regression
+    * Gives weights to observations to find outliers (DESeq uses Cook's algorithm for each gene difference B, if cook's = 0 -> large distance AKA outlier discarded)
+</div>
+    
 * Task: Search for packages implementing the above eqns for rombust regression methods <mark style='background-color:red'>skipped</mark>
 
 * **
@@ -915,11 +947,12 @@ addmargins( compareRes )
   
 * Task
   * Advanced: check source code producing below figure
-```{r}
-
-```
-
   <mark style='background-color:red'>skipped for now</mark>
+  
+<img src="http://web.stanford.edu/class/bios221/book/figure/chap7-rnaseq-posterior-1.png"  width="250" height="250"> 
+<img src="http://web.stanford.edu/class/bios221/book/figure/chap7-rnaseq-posterior-2.png"  width="250" height="250">
+
+> Figure 8.10: Shrinkage estimation of logarithmic fold change estimates by use of an empirical prior in <strong><a href="https://bioconductor.org/packages/DESeq2/">DESeq2</a></strong>. Two genes with similar mean count and MLE logarithmic fold change are highlighted in green and blue. The normalized counts for these genes (upper panel) reveal low dispersion for the gene in blue and high dispersion for the gene in green. In the lower panel, the density plots are shown of the normalized likelihoods (solid lines) and of the posteriors (dashed lines) for the green and blue gene. In addition, the solid black line shows the prior estimated from the MLEs of all genes. Due to the higher dispersion of the green gene, its likelihood is wider and less sharp (indicating less information), and the prior has more influence on its posterior than in the case of the blue gene.
   
 #### Count data transformations 
 * Testing differential exprssion on raw counts -> use discrete distirbutions
@@ -1038,7 +1071,7 @@ gridExtra::grid.arrange(
 ```{r}
 par(mfrow = c(4, 1), mar = c(2, 2, 1, 1))
 myMA = function(h, v, theta = 0.5) {
-  plotMA(pasilla, lfcThreshold = theta, altHypothesis = h,
+  DESeq2::plotMA(pasilla, lfcThreshold = theta, altHypothesis = h,
          ylim = c(-2.5, 2.5))
   abline(h = v * theta, col = "dodgerblue", lwd = 2)
 }
@@ -1059,7 +1092,7 @@ results(pasilla, lfcThreshold = 0.5, altHypothesis = "greaterAbs")
 * **
 <p id="12"><b><font size="5">Excercises</b></font><a href="#0"><sup>Return</sup></a></p>
 
-# https://www.bioconductor.org/help/course-materials/2016/CSAMA/lab-3-rnaseq/rnaseq_gene_CSAMA2016.html#creating-a-dgelist-for-use-with-edger
+#https://www.bioconductor.org/help/course-materials/2016/CSAMA/lab-3-rnaseq/rnaseq_gene_CSAMA2016.html#creating-a-dgelist-for-use-with-edger
 # WORK IN PROGRESS - STILL FIGURING THINGS OUT
 
 #### Excercise 8.1
@@ -1077,27 +1110,56 @@ is(pasillaEdge, "SummariedExperiment") #not a summarizedexperiment class of bioc
 ```{r}
 # DESeq2() -> normalization (estimateSizeFactors), dispersion estimate (estimateDispersions), & nbiomWladTest (hypothesis test for differential abundance)
 
-#Equivalent to DESeq2() function in EdgeR is model.matrix() for groups + fit()
-design <- model.matrix(~pasillaEdge$samples$group)
-pasillaEdge1 <- calcNormFactors(pasillaEdge) # estimate size factor
-pasillaEdge1 <- estimateDisp(pasillaEdge, design) #estimate dispersion
-fit <- glmFit(pasillaEdge1, design=design, dispersion = pasillaEdge$common.dispersion) #note dispersion is set at NULL default
-lrt <- glmLRT(fit, coef=ncol(design))
+#model.matrix() forms a design matrix
+  #design <- model.matrix(~ condition + type, pasillaEdge$samples) #account for both condition and type variables
+design <- model.matrix(~ condition, pasillaEdge$samples) #account only for condition variable like in 8.5
+pasillaEdge1 <- calcNormFactors(pasillaEdge, method="RLE") # estimate size factor
+pasillaEdge1 <- estimateDisp(pasillaEdge1, design) #estimate dispersion - need to specify design matrix
+fit <- glmFit(pasillaEdge1, design=design) # Fit to a linearized model, note dispersion is set at NULL default
+lrt <- glmLRT(fit, coef=ncol(design)) #choose coefficient to test for from design table
+ttL <- edgeR::topTags(lrt, n=nrow(lrt), sort.by="none") #extract summary table
 ```
 
 ```{r}
 #Compare w/ DESeq2 output
+  # edgeR normalization = Trimmed Mean of M-values normalization (TMM) default
+  # DESeq2 normalization = Relative Log Expression” normalization (RLE) default
+    # median based normalization
+  # normalization factors edgeR =/= size factors DESeq2
 pasilla$sizeFactor ; pasillaEdge1$samples$norm.factors #size factor est.
 ```
 
 ```{r}
 #Compare edgeR results vs DESeq2 results
-tt <- topTags(lrt, n=nrow(pasillaEdge1), p.value=0.1)
-tt10 <- topTags(lrt) # just the top 10 by default
-tt.all <- topTags(lrt, n=nrow(pasillaEdge1), sort.by="none")
-table(DESeq2=results(pasilla)$padj < 0.1, edgeR=tt.all$table$FDR <0.1)
+table(DESeq2=results(pasilla)$padj < 0.1, edgeR=ttL$table$FDR <0.1)
 ```
 
+```{r}
+tt <- topTags(lrt, n=nrow(pasillaEdge1))
+tt10 <- topTags(lrt) # just the top 10 by default
+tt.all <- topTags(lrt, n=nrow(pasillaEdge1), sort.by="none")
+```
+
+```{r}
+# Compare the two by ranks
+common <- !is.na(res$padj)
+plot(rank(res$padj[common]), 
+     rank(tt.all$table$FDR[common]), cex=.1,
+     xlab="DESeq2", ylab="edgeR")
+```
+
+```{r}
+#plot log p-value scatterplot
+  #DESeq2
+DESeq2::plotMA(res, ylim=c(-2,2))
+```
+
+```{r}
+#plot log p-value scatterplot
+  #edgeR
+  #plotsmear() ?
+plotMD(lrt)
+```
 
 #### Excercise 8.2
 * skipped b/c not sure how shiny works (this was mentioned in ch3 which we didn't go through)
