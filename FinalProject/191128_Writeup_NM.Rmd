@@ -19,6 +19,7 @@ library(pca3d)
 library(factoextra)
 library(vegan)
 library(MASS)
+library(here)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -61,29 +62,32 @@ a
 &emsp; From the article by [Zuo et al. (2019)](https://www.nature.com/articles/s41467-018-06103-6/), the associated fungal ITS2 MiSeq dataset is found on [NCBI BioProject (PRJNA419104)](https://www.ncbi.nlm.nih.gov/sra?linkname=bioproject_sra_all&from_uid=419104). A file containing all the sequence accessions is exported and uploaded onto an online collection of bioinformatic tools, [Galaxy tools](https://usegalaxy.org/). On Galaxy, the sequence files associated with their linking accessions is downloaded using the "Faster Download and Extract Reads in FASTQ format from NCBI SRA" tool. The "List of SRA accession, one per line" parameter for this tool allows for the extraction of paired-end sequence collection from BioProject. The resulting file must be unzipped and the file type must be changed for downstream analysis. Using Bash, I <a href="#ER">renamed</a> the ".fastqsanger" extension to the format, "_L001_R#_001.fastq", for downstream processing. 
 
 <u>**FASTQ Header Processing**</u>  
-&emsp; FASTQ files extracted by Galaxy contains improper headers for downstream operational taxonomic units (OTUs) analysis (i.e. @1/1). I created two Bash scripts, <a href="#FH1">HeaderRenameR1.sh</a> and <a href="#FH2">HeaderRenameR2.sh</a>, to rename foward reads (R1) and reverse reads (R2) into the format "#Sample Accession_L001/#". Briefly, each script searches for forward (R1) or reverse (R2) FASTQ files, and pastes the associated accession ID as the header. The number in front of the accession header prevents overlaping names, while the number at the end of the header distinguishes forward reads (1) from reverse reads (2) for paired-end files. To run the scripts, place them in the same folder as the FASTQ files and execute `./headerrenameR#.sh outputfolder/`
+&emsp; FASTQ files extracted by Galaxy contains improper headers for downstream operational taxonomic units (OTUs) analysis (i.e. @1/1). I created two Bash scripts, <a href="#FH1">HeaderRenameR1.sh</a> and <a href="#FH2">HeaderRenameR2.sh</a>, to rename forward reads (R1) and reverse reads (R2) into the format "#Sample Accession_L001/#". Briefly, each script searches for forward (R1) or reverse (R2) FASTQ files, and pastes the associated accession ID as the header. The number in front of the accession header prevents overlaping names, while the number at the end of the header distinguishes forward reads (1) from reverse reads (2) for paired-end files. To run the scripts, place them in the same folder as the FASTQ files and execute `./headerrenameR#.sh outputfolder/`
 
 <u>**LotuS Pipeline OTU Analysis**</u>  
-&emsp; [Less operational taxonomic units scripts (LotuS)](https://microbiomejournal.biomedcentral.com/articles/10.1186/2049-2618-2-30) is a metataxonomic tool which allows for fungal ITS2 amplicon based taxonomic clustering and classification (Hildebrand et al., 2014). This tool needs to be installed on a Bash based system, and there is information online [aiding installation](http://psbweb05.psb.ugent.be/lotus/documentation.html). Note that [USEARCH](http://www.drive5.com/usearch/download.html) must be downloaded separately for this tool to work. To use this tool, a mapping file is first generated using the <a href="#Lotus">`./autoMap.pl`</a> command which pairs the forward and reverse FASTQ files for clustering. The following <a href="#Lotus">`./lotus.pl`</a> command is used to cluster the sequences into OTUs based upon a percent similarity. I set the parameters for identification of fungal organisms using the fungal ITS2 region mapped to the UNITE reference database, and sequence processing is done using the MiSeq settings with a minimum requirement of a 100 bp overlap.
+&emsp; [Less operational taxonomic units scripts (LotuS)](https://microbiomejournal.biomedcentral.com/articles/10.1186/2049-2618-2-30) is a metataxonomic tool which allows for fungal ITS2 amplicon based taxonomic clustering and classification (Hildebrand et al., 2014). This tool needs to be installed on a Bash based system, and there is information online [aiding installation](http://psbweb05.psb.ugent.be/lotus/documentation.html). Note that [USEARCH](http://www.drive5.com/usearch/download.html) must be downloaded separately for this tool to work. To use this tool, a mapping file is first generated using the <a href="#LotuS">`./autoMap.pl`</a> command which pairs the forward and reverse FASTQ files for clustering. The following <a href="#LotuS">`./lotus.pl`</a> command is used to cluster the sequences into OTUs based upon a percent similarity. I set the parameters for identification of fungal organisms using the fungal ITS2 region mapped to the UNITE reference database, and sequence processing is done using the MiSeq settings with a minimum requirement of a 100 bp overlap.
 
 
 <u>**Metadata Analysis**</u>  
-&emsp; Metadata associated with CDI infected patients, their matched controls, number of replicates, and relapse status is provided by Zuo et al. (2019), [in supplementary data 3 and 4 of their article](https://www.nature.com/articles/s41467-018-06103-6/). In brief, 16 CDI patients underwent FMT (FMT1 to FMT16) with their numerically matched donors (Control1 to Control16). After transplant, CDI patients were sampled for a longitudinal period (authors supplementary information Figure 2). From [NCBI BioProject (PRJNA419104)](https://www.ncbi.nlm.nih.gov/sra?linkname=bioproject_sra_all&from_uid=419104), I exported a excel format summary file of all FASTQ sequences and used Microsoft excel for further operations. I added the columns, "Patient" &	"SORT BY" beside the existing "Study Accession" column. The "SORT BY" column contains data associated with replicate samples, found in the authors supplentary data 4, and the column "Patient" contains abbreviated patient IDs (P for patient and C for control). Using excel, I performed a expanded sort on the "Experiment Title" column, based upon the "SORT BY" column ordering. This is to get the column "Study Accession" into order by grouping replicates because the counts table derived by processing LotuS output in Rstudio, contains accession IDs as sample identifiers.
+&emsp; Metadata associated with CDI infected patients, their matched controls, number of replicates, and relapse status is provided by Zuo et al. (2019), [in supplementary data 3 and 4 of their article](https://www.nature.com/articles/s41467-018-06103-6/). In brief, 16 CDI patients underwent FMT (FMT1 to FMT16) with their numerically matched donors (Control1 to Control16). After transplant, CDI patients were sampled for a longitudinal period (authors supplementary information Figure 2). From [NCBI BioProject (PRJNA419104)](https://www.ncbi.nlm.nih.gov/sra?linkname=bioproject_sra_all&from_uid=419104), I exported a excel format summary file of all FASTQ sequences and used Microsoft excel for further operations. I added the columns, "Patient" &	"SORT BY" beside the existing "Study Accession" column. The "SORT BY" column contains data associated with replicate samples, found in the authors supplementary data 4, and the column "Patient" contains abbreviated patient identifiers (P for patient and C for control). Using excel, I performed a expanded sort on the "Experiment Title" column, based upon the "SORT BY" column ordering. This is to get the column "Study Accession" into order by grouping replicates because the counts table derived by processing LotuS output in Rstudio, contains accession identifiers as sample identifiers.
 
 <u>**Data Wrangling**</u>  
-&emsp; From the LotuS analysis output, the files: OTU.txt (OTU count table) and ProjectMapping.txt (mapping file) are loaded into Rstudio. First, a vector containing accession IDs of control samples is generated for data wrangling operations (controls). Then a OTU count table (OTU) and mapping file containing sample accession IDs for paired-end reads (samples) is loaded. The column headers provided by LotuS in the OTU counts table (SMPL#), is renamed into their matching accession ID found in the mapping file. The dataframe is then subsetted into "Case" and "Control" by splitting into two separate dataframes, based upon accession IDs of the control vector previously formed. In the "Case" dataframe (OTUcc), the column headers are renamed into "Control_1" to "Control_23" for easier downstream visualization and is further subsetted to obtain the 16 donor controls corresponding to the matched CDI recipients (OTUc).  
-&emsp; A dataframe containing only CDI sample accession IDs (OTUs) is also subsetted from the original OTU table (OTU). The ordered metadata excel file, generated in the above section, is loaded into Rstudio for further processing (sra_result). The metadata dataframe is subsetted for the sorted columns "Experiment Title" and matching "SRR Accession" which was previously ordered in excel (sra_result1). From the subsetted metadata dataframe, control IDs are removed (sra_result1.1) and the dataframe is again subsetted to contain the 16 CDI patients who had FMT and retaining sequencing replicate accession IDs (sra_result1.2). This dataframe is used to subset the dataframe containing all CDI samples (OTUs), for the 16 CDI patients who underwent FMT as well as their associated replicate samples (OTUn).  
+&emsp; From the LotuS analysis output, the files: OTU.txt (OTU count table) and ProjectMapping.txt (mapping file) are loaded into Rstudio. First, a vector containing accession identifiers of control samples is generated for data wrangling operations (controls). Then a OTU count table (OTU) and mapping file containing sample accession identifiers for paired-end reads (samples) is loaded. The column headers provided by LotuS in the OTU counts table (SMPL#), is renamed into their matching accession identifier found in the mapping file. The dataframe is then subsetted into "Case" and "Control" by splitting into two separate dataframes, based upon accession identifiers of the control vector previously formed. In the "Case" dataframe (OTUcc), the column headers are renamed into "Control_1" to "Control_23" for easier downstream visualization and is further subsetted to obtain the 16 donor controls corresponding to the matched CDI recipients (OTUc).  
+&emsp; A dataframe containing only CDI sample accession identifiers (OTUs) is also subsetted from the original OTU table (OTU). The ordered metadata excel file, generated in the above section, is loaded into Rstudio for further processing (sra_result). The metadata dataframe is subsetted for the sorted columns "Experiment Title" and matching "SRR Accession" which was previously ordered in excel (sra_result1). From the subsetted metadata dataframe, control identifiers are removed (sra_result1.1) and the dataframe is again subsetted to contain the 16 CDI patients who had FMT and retaining sequencing replicate accession identifiers (sra_result1.2). This dataframe is used to subset the dataframe containing all CDI samples (OTUs), for the 16 CDI patients who underwent FMT as well as their associated replicate samples (OTUn).  
 &emsp; In the final steps, the column header for the dataframe containing the 16 CDI patients and replicates (OTUn) is renamed based upon their matching "Experiment Title" from the metadata dataframe. Again, this is done for the ease of visualization in further steps. I then re-combined the subsetted 16 CDI samples dataframe (OTUn) with their associated 16 controls (OTUc) dataframe. In the end, the previously generated combined dataframe (OTUa) is transposed so that samples are rows (OTUanalysis). This is because I want to compare community structures between individuals and ordination analysis, in specific PCA, calculations are based upon comparing columns (the operational taxonomic units) within a sample. The code for data wrangling is listed in the below <a href="#DW">"Codes & Figures"</a> section.
 
 <u>**PCA Analysis**</u>  
-&emsp; Before starting ordination analysis, I generated a <a href="#group">dataframe to group</a> samples into "CDI" and "Controls" for visual separation in later plots (groupingstable). Briefly, I took the sample IDs from the transposed counts table (OTUanalysis) and grouped them into two of the mentioned levels. To perform PCA analysis, I used the library "PCAtools" from BioConductor because it contained multiple functions for visualizing PCA plots. The initial function to perform SVD calculation for eigenvalues and their associated eigenvectors is `pca()`. I viewed the code for this function provided in PCAtools and realized it uses `prcomp()` for eigen calculations, but lacks a standard deviation output. The standard deviation output is important because I can cross-check if the eigenvalues outputted by PCAtools match other calculation functions, such as `eigenvalue()` (Note standard deviation<sup>2</sup> AKA the variance is the eigenvalues). To supplement the `pca()` function, I added the "sdev" output from `prcomp()` calculation (sdev = pcaobj$sdev). I also realized that `pca()` transposes the input counts table, which would mean the calculations are based upon sample to sample covariances not community (in the case of eigendecomposition calculation, which results similar to SVD). I fixed the problem by removing "t(mat)" from their script, which also required me to edit their metadata grouping length restriction ("!all(colnames(mat) == rownames(metadata)" changed to "all(colnames(mat) == rownames(metadata))"). I formulated these changes into the edited `pca1()` function based upon the original `pca()` function from PCAtools, which can still be inputted into their other tools.  
-&emsp; Using the edited `pca1()` function, I set the arguments inputting the OTUanalysis dataframe, and groupingstable for grouping infomation, as well as using centering scaling by subtracing column means. I then obtained transformed coordinates for multiple principal components (PCs), which is based upon the number of columns (OTU) in the OTUanalysis dataframe. In the first step of PCA, I visualized the PCs using the `screeplot()` function, which indicated PC1 to PC3 accounting for most of the sample varaince. I then plotted a `biplot()` to see how PC2 against PC1 would look like in 2-dimension, it has a v-like/parabolic shape which is mentioned as a limitation of PCA.  
-&emsp; To confirm this, I tested the `pairsplot()` function to see how multiple PCs would look like and the similar v-like shape is seen. The output of `pairsplot()` gave numerical variances accounted by each PC, and as screeplot indicated, PC1 to PC3 does account for most of the variance (84%). This indicates that a 3-dimensional visualization of PC1 to PC3 is necessary to view most of the variance between samples. To do this, I used the package "pca3d" because it allows for 3D PCA plots. The resulting 3D PCA plot of PC1 to PC3 shows the familar v-like shape in 3 dimensional space.  
-&emsp; I double checked these results using step-by-step eigendecomposition calculations, as well as another PCA analysis tool "factoextra" mentioned in the textbook and the results correspond well. The codes used for this section is found below in the <a href="#PCA">"PCA Analysis"</a> codes section. 
+&emsp; Before starting ordination analysis, I generated a <a href="#group">dataframe to group</a> samples into "CDI" and "Controls" for visual separation in later plots (groupingstable). Briefly, I took the sample identifiers from the transposed counts table (OTUanalysis) and grouped them into two of the mentioned levels. To perform PCA analysis, I used the library "PCAtools" from BioConductor because it contained multiple functions for visualizing PCA plots. The initial function to perform SVD calculation for eigenvalues and their associated eigenvectors is `pca()`. I viewed the code for this function provided in PCAtools and realized it uses `prcomp()` for eigen calculations, but lacks a standard deviation output. The standard deviation output is important because I can cross-check if the eigenvalues outputted by PCAtools match other calculation functions, such as `eigenvalue()` (Note standard deviation<sup>2</sup> AKA the variance is the eigenvalues). To supplement the `pca()` function, I added the "sdev" output from `prcomp()` calculation (sdev = pcaobj$sdev). I also realized that `pca()` transposes the input counts table, which would mean the calculations are based upon sample to sample covariances not community (in the case of eigendecomposition calculation, which results similar to SVD). I fixed the problem by removing "t(mat)" from their script, which also required me to edit their metadata grouping length restriction ("!all(colnames(mat) == rownames(metadata)" changed to "all(colnames(mat) == rownames(metadata))"). I formulated these changes into the edited `pca1()` function based upon the original `pca()` function from PCAtools, which can still be inputted into their other tools.  
+&emsp; Using the edited `pca1()` function, I set the arguments inputting the OTUanalysis dataframe, and groupingstable for grouping information, as well as using centering scaling by subtracing column means. I then obtained transformed coordinates for multiple principal components (PCs), which is based upon the number of columns (OTU) in the OTUanalysis dataframe. In the first step of PCA, I visualized the PCs using the `screeplot()` function, which indicated PC1 to PC3 accounting for most of the sample variance (<a href="#fig1">Figure 1</a>). I then plotted a `biplot()` to see how PC2 against PC1 would look like in 2-dimension, it has a v-like/parabolic shape which is mentioned as a limitation of PCA (<a href="#fig2">Figure 2</a>).  
+&emsp; To confirm this, I tested the `pairsplot()` function to see how multiple PCs would look like and the similar v-like shape is seen (<a href="#fig3">Figure 3</a>). The output of `pairsplot()` gave numerical variances accounted by each PC, and as screeplot indicated, PC1 to PC3 does account for most of the variance (84%). This indicates that a 3-dimensional visualization of PC1 to PC3 is necessary to view most of the variance between samples. To do this, I used the package "pca3d" because it allows for 3D PCA plots. The resulting 3D PCA plot of PC1 to PC3 shows the familiar v-like shape in 3 dimensional space (Not shown).  
+&emsp; I double checked these results using step-by-step eigendecomposition calculations, as well as another PCA analysis tool "factoextra" mentioned in the textbook and the results correspond well (Figures <a href="#fig4">4</a> & <a href="#fig5">5</a>). The codes used for this section is found below in the <a href="#PCA">"PCA Analysis"</a> codes section. 
 
 
 <u>**MDS and NMDS Analysis**</u>  
-&emsp; MDS and NMDS analysis both intake a distance matrix
+&emsp; MDS and NMDS analysis both intake a distance matrix to perform linear transformations. Starting with MDS, I used the "vegan" package and the function `vegdist()` to perform a distance measure using the Jaccard dissimilarity distance method. Then I used "stats" package which allows for MDS based eigen calculations on a distance matrix. By using the function `cmdscale()`, where I selected the argument "k=2", the output is for components MDS1 and MDS2 which are equivalent to PCs in PCA; however, the similarity of CDI cured samples, and their matching controls, are grouped more distinctively when compared to PCA (Figures <a href="#fig6">6</a> & <a href="#fig2">2</a>)  
+&emsp; I also analyzed MDS using the Euclidean distance measure, and the output is identical to the above PCA analysis (<a href="#fig7">Figure 7</a>). This is expected because PCA is known as a Euclidean method of ordination analysis. Alternatively, Bray–Curtis dissimilarity could have been used to calculate the distance matrix, which would result similarly to the Jaccard dissimilarity distance calculation (Figures <a href="#fig6">6</a> & <a href="#fig8">8</a>). I chose the Jaccard measure arbitrarily, which is a limitation of this study because finding the correct distance measure for the data requires further investigation. The codes used for MDS analysis is found at the <a href="#MDS">"MDS Analysis"</a> section in codes. 
+&emsp; For NMDS analysis, I again used the "vegan" package with the function `metaMDS()` which iteratively tries to calculate the lowest stress value (a goodness of fit metric). The number of iterations, as well as stress value, will differ per run because `metaMDS()` starts calculations at different points. For this analysis I kept the distance measure as Jaccard to compare with the MDS method. I also kept the same argument, "k=2", to calculate for components NMDS1 and NMDS2. The outpt graph more distinctly groups CDI cured patients with their matched controls, as compared to MDS (<a href="#fig9">Figure 9</a>).   
+&emsp; Again, the Bray–Curtis distance measure applied in NMDS will result in a similar plot to the Jaccard measure NMDS plot (<a href="#fig10">Figure 10</a>). Codes used in NMDS analysis is found <a href="#NMDS>">below</a>. 
 
 * **
 <p id="5"><b><font size="5">Codes</b></font><a href="#0"><sup>Return</sup></a></p>
@@ -98,7 +102,7 @@ rename .fastqsanger _L001_R2_001.fastq collection\ 4\ \(reverse\)/* # For revers
 ```
 </div>
 
-<div id="ER">
+<div id="LotuS">
 <u>**LotuS Commands**</u>
 ```{bash, eval=FALSE}
 ./autoMap.pl FASTQfolder/ ProjectMapping.txt 2 #where 2 represents paired-end reads
@@ -139,12 +143,11 @@ done
 <div id="DW">
 <u>**Data Wrangling**</u>
 ```{r, eval=FALSE}
-#NOTE - I realized I should have done this all in a Rproject container but I didn't (laziness), which is why I have to specify all my directory paths
-# I also realize I could have just downloaded FASTQ files corresponding to the 16 Cases+replicates & controls to save myself from all this trouble but it was already too late when I started & re-read the article
+#NOTE - I realized I could have just downloaded FASTQ files corresponding to the 16 Cases+replicates & controls to save myself from all this trouble but it was already too late when I started & re-read the article
 
 #Set directory for loading in files
-pathOTU <- "C:/Users/Nelson/Desktop/MegaSync/Other/191114_Statsproj/StatsProjrun/OTU.txt"
-pathSamples <- "C:/Users/Nelson/Desktop/MegaSync/Other/191114_Statsproj/StatsProjrun/ProjectMapping.txt"
+pathOTU <- here("FinalProject", "FinalWorkflow","FinalData", "LotuSOutput", "OTU.txt")
+pathSamples <- here("FinalProject", "FinalWorkflow","FinalData", "LotuSOutput", "ProjectMapping.txt")
 
 #Vector containing acession IDs for controls
 controls <- c("SRR6308536", "SRR6308532", "SRR6308512", "SRR6308508", "SRR6308518", "SRR6308526", "SRR6308541", "SRR6308540", "SRR6308546", "SRR6308554", "SRR6308556", "SRR6308500", "SRR6308452", "SRR6308449", "SRR6308464", "SRR6308465", "SRR6308502", "SRR6308504", "SRR6308506", "SRR6308492", "SRR6308491", "SRR6308490", "SRR6308489")
@@ -169,7 +172,7 @@ OTU <- read.table(pathOTU, header=TRUE, row.names = 1, sep="\t") #this loads OTU
     OTUs <- OTU[,tidyselect::vars_select(names(OTU), -controls)] #separate out case samples
     
 #Load in metadata
-  sra_result <- read_excel("C:/Users/Nelson/Desktop/MegaSync/Other/191114_Statsproj/sra_result.xlsx") #load sorted metadata
+  sra_result <- read_excel(here("FinalProject", "FinalWorkflow","FinalData", "sra_result.xlsx")) #load sorted metadata
   sra_result1 <- sra_result[c(2,4)] #subset the important columns (SRR matching replicates)
    cont <- paste("Control", 1:23, sep="") #make a vector of control values for next step to remove
   sra_result1.1 <- subset(sra_result1, !`Experiment Title` %in% cont) #Remove controls
@@ -211,7 +214,7 @@ rownames(groupingstable) <- rownames(OTUanalysis)  #match corresponding sample I
 #HAVE TO EDIT THE pca() function FROM PCA TOOLS
   #added sdev
   #removed prcomp(t(mat))
-  #changed !all(colnames(mat) == rownames(metadata) to all(colnames(mat) == rownames(metadata)
+  #changed !all(colnames(mat) == rownames(metadata) to all(colnames(mat) == rownarmes(metadata)
 pca1 <- function (mat, metadata = NULL, center = TRUE, scale = FALSE, 
                   removeVar = NULL) 
 {
@@ -409,8 +412,8 @@ NMDSBplot + geom_label_repel(aes(label = site), #Repel sample labels for more cl
 
 ```{r, echo=F, warning=F, message=F}
 #This is the needed background to produce figures - echo makes it so the code doesn't show up when knitted
-pathOTU <- "C:/Users/Nelson/Desktop/MegaSync/Other/191114_Statsproj/StatsProjrun/OTU.txt"
-pathSamples <- "C:/Users/Nelson/Desktop/MegaSync/Other/191114_Statsproj/StatsProjrun/ProjectMapping.txt"
+pathOTU <- here("FinalProject", "FinalWorkflow","FinalData", "LotuSOutput", "OTU.txt")
+pathSamples <- here("FinalProject", "FinalWorkflow","FinalData", "LotuSOutput", "ProjectMapping.txt")
 controls <- c("SRR6308536", "SRR6308532", "SRR6308512", "SRR6308508", "SRR6308518", "SRR6308526", "SRR6308541", "SRR6308540", "SRR6308546", "SRR6308554", "SRR6308556", "SRR6308500", "SRR6308452", "SRR6308449", "SRR6308464", "SRR6308465", "SRR6308502", "SRR6308504", "SRR6308506", "SRR6308492", "SRR6308491", "SRR6308490", "SRR6308489")
 OTU <- read.table(pathOTU, header=TRUE, row.names = 1, sep="\t") 
     samples <- read.table(pathSamples, header=FALSE, row.names =1, sep="\t") 
@@ -421,7 +424,7 @@ OTU <- read.table(pathOTU, header=TRUE, row.names = 1, sep="\t")
       names(OTUcc) <- paste("Control", 1:23, sep="_") 
       OTUc <- OTUcc[,1:16] 
     OTUs <- OTU[,tidyselect::vars_select(names(OTU), -controls)] 
-  sra_result <- read_excel("C:/Users/Nelson/Desktop/MegaSync/Other/191114_Statsproj/sra_result.xlsx") 
+  sra_result <- read_excel(here("FinalProject", "FinalWorkflow","FinalData", "sra_result.xlsx"))
   sra_result1 <- sra_result[c(2,4)] 
    cont <- paste("Control", 1:23, sep="") 
   sra_result1.1 <- subset(sra_result1, !`Experiment Title` %in% cont) 
@@ -484,6 +487,19 @@ MDSplot <- ggplot(data=MDS.data, aes(x=X ,y=Y, color=groupingstable$groupings)) 
   labs(color='Groups') +
   scale_color_manual(values=c('tomato', 'turquoise3'))
 
+MDSdistB <- vegdist(OTUanalysis, method="bray") #generate distance matrix based on Bray dissimilarity
+MDSB <- cmdscale(MDSdistB, k=2, eig=T, x.ret=T) #cmdscale is for classical MDS - needs distance matrix
+MDSB.values <- MDSB$points #subset for MDS coordinates
+MDSB.data <- data.frame(sample=rownames(MDSB.values), X=MDSB.values[,1], Y=MDSB.values[,2]) #Add sample ID column to coordinates
+
+MDSBplot <- ggplot(data=MDSB.data, aes(x=X ,y=Y, color=groupingstable$groupings)) + #Plot MDS coordinates
+  geom_point() +
+  theme_bw() + 
+  xlab("MDS1") +
+  ylab("MDS2") +
+  ggtitle("MDS plot using Bray distance") + 
+  labs(color='Groups') +
+  scale_color_manual(values=c('tomato', 'turquoise3'))
 
 NMDS <- vegan::metaMDS(OTUanalysis, distance="jaccard", k=2, trymax=1000) #generate NMDS coordinates based on jaccard dissimilarity matrix
 NMDS.scores <- as.data.frame(scores(NMDS))  #Using the scores function from vegan to extract the site scores (coordinates) and convert to a data.frame
@@ -495,22 +511,26 @@ NMDSplot <- ggplot(data=NMDS.scores,aes(x=NMDS1,y=NMDS2,shape=grp,colour=grp),si
   ggtitle("NMDS plot using Jaccard distance") +
   scale_color_manual(values=c('tomato', 'turquoise3'))
 
+NMDSB <- vegan::metaMDS(OTUanalysis, distance="bray", k=2, trymax=1000) #generate NMDS coordinates based on jaccard dissimilarity matrix
+NMDSB.scores <- as.data.frame(scores(NMDSB))  #Using the scores function from vegan to extract the site scores (coordinates) and convert to a data.frame
+NMDSB.scores$site <- rownames(NMDSB.scores)  # create a column of site names (samples), from the rownames of NMDS.scores
+NMDSB.scores$grp <- groupingstable$groupings # add the metadata groupings as a new column
+
+NMDSBplot <- ggplot(data=NMDSB.scores,aes(x=NMDS1,y=NMDS2,shape=grp,colour=grp),size=3) + #plot NMDS coordinates
+  geom_point() + ylim(-1,1) + xlim(-1.2,1.2) +
+  ggtitle("NMDS plot using Bray distance") + 
+  scale_color_manual(values=c('tomato', 'turquoise3'))
 ```
 
-
-```{r, echo=F, warning=F, message=F}
+<div id="fig1"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
 screeplot(PCA, axisLabSize=10, vline=3.5)
 ```
 
-> **Figure 1.** Screeplot PCAtools
+> **Figure 1.** Screeplot from PCAtools.
 
-```{r, echo=F, warning=F, message=F}
-fviz_eig(ppx) # screeplot looks about the same
-```
-
-> **Figure 2.** Screeplot factoextra
-
-```{r, echo=F, warning=F, message=F}
+<div id="fig2"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
       biplot(PCA, x='PC1', y='PC2',
              lab=T,
              labSize=3,
@@ -520,9 +540,25 @@ fviz_eig(ppx) # screeplot looks about the same
              pointSize = 3.0)
 ```
 
-> **Figure 3.** Biplot of PC2 vs PC1 PCAtools
+> **Figure 2.** PCA biplot of from PCAtools.
 
-```{r, echo=F, warning=F, message=F}
+
+<div id="fig3"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
+pairsplot(PCA, colby='groupings')
+```
+
+> **Figure 3.** Pairsplot from PCAtools.
+
+<div id="fig4"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
+fviz_eig(ppx) # screeplot looks about the same
+```
+
+> **Figure 4.** Screeplot from factoextra.
+
+<div id="fig5"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
   fviz_pca_ind(ppx, 
                label=F, #remove all labels so non-messy graph
                col.ind = groupingstable$groupings, # color by groups
@@ -533,15 +569,20 @@ fviz_eig(ppx) # screeplot looks about the same
                repel = TRUE) + xlim (-1e5,1e5)
 ```
 
-> **Figure 4.** Biplot PC2 vs PC1 factoextra
+> **Figure 5.** PCA biplot from factoextra.
 
-```{r, echo=F, warning=F, message=F}
-pairsplot(PCA, colby='groupings')
+<div id="fig6"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
+MDSplot + geom_label_repel(aes(label = sample), #Repel sample labels for more clear visualization
+                           box.padding   = 0.35, 
+                           point.padding = 0.5,
+                           segment.color = 'grey50') +theme_classic() 
 ```
 
-> **Figure 5.** Pairsplot PCAtools
+> **Figure 6.** MDS plot using Jaccard distance (vegan::vegdist & stats::cmdscale).
 
-```{r, echo=F, warning=F, message=F}
+<div id="fig7"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
 ggplot(data=MDSE.data, aes(x=X ,y=Y, color=groupingstable$groupings)) + #Plot MDS coordinates
   geom_point() +
   theme_bw() + 
@@ -552,28 +593,37 @@ ggplot(data=MDSE.data, aes(x=X ,y=Y, color=groupingstable$groupings)) + #Plot MD
   scale_color_manual(values=c('tomato', 'turquoise3'))
 ```
 
-> **Figure 6.** MDS plot using Euclidean distance (vegan::vegdist & stats::cmdscale)
+> **Figure 7.** MDS plot using Euclidean distance (vegan::vegdist & stats::cmdscale).
 
-```{r, echo=F, warning=F, message=F}
-MDSplot + geom_label_repel(aes(label = sample), #Repel sample labels for more clear visualization
+<div id="fig8"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
+MDSBplot + geom_label_repel(aes(label = sample), #Repel sample labels for more clear visualization
                            box.padding   = 0.35, 
                            point.padding = 0.5,
-                           segment.color = 'grey50') +theme_classic() 
+                           segment.color = 'grey50') +theme_classic()
 ```
 
-> **Figure 6.** MDS plot using Jaccard distance (vegan::vegdist & stats::cmdscale)
+> **Figure 8.** MDS plot using Bray–Curtis distance (vegan::vegdist & stats::cmdscale).
 
-
-```{r, echo=F, warning=F, message=F}
+<div id="fig9"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
 NMDSplot + geom_label_repel(aes(label = site), #Repel sample labels for more clear visualization
                             box.padding   = 0.35, 
                             point.padding = 0.5,
                             segment.color = 'grey50') +theme_classic()
 ```
 
-> **Figure 8.** NMDS plot using Jaccard distance (vegan::metaMDS)
+> **Figure 9.** NMDS plot using Jaccard distance (vegan::metaMDS).
 
+<div id="fig10"></div>
+```{r, echo=F, warning=F, message=F, fig.height=6, fig.width=10}
+NMDSBplot + geom_label_repel(aes(label = site), #Repel sample labels for more clear visualization
+                            box.padding   = 0.35, 
+                            point.padding = 0.5,
+                            segment.color = 'grey50') +theme_classic()
+```
 
+> **Figure 10.** NMDS plot using Bray–Curtis distance (vegan::metaMDS).
 
 * **
 <p id="x"><b><font size="5">References</b></font><a href="#0"><sup>Return</sup></a></p>
